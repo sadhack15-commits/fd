@@ -1,7 +1,7 @@
 'use strict';
 // ╔═══════════════════════════════════════════════════════════════════════╗
-// ║  erima_vn — Discord AI Bot  v7.0                                     ║
-// ║  + MiMo AI Agent (browser, shell, S3, web) — chỉ Owner dùng được   ║
+// ║  erima_vn — Discord AI Bot  v8.0                                     ║
+// ║  + MiMo AI Agent v3 (browser, shell, S3, web) — tích hợp đầy đủ   ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
 const { execSync, exec, spawn } = require('child_process');
@@ -34,35 +34,39 @@ const {
 const OPENCODE_KEY  = process.env.OPENCODE_KEY  || 'sk-ip7VWGiLSRK9srvIa7ECV0FcAQ9W4QZPOM8neMalKjEdhSPDmdLp5fPyPOy5XDxF';
 const NVIDIA_KEY    = process.env.NVIDIA_KEY    || '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';
 
-const OPENCODE_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions';
-const NVIDIA_ENDPOINT   = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const OPENCODE_HOST     = 'opencode.ai';
-const OPENCODE_PATH     = '/zen/v1/chat/completions';
-const NVIDIA_HOST       = 'integrate.api.nvidia.com';
-const NVIDIA_PATH       = '/v1/chat/completions';
+const OPENCODE_HOST = 'opencode.ai';
+const OPENCODE_PATH = '/zen/v1/chat/completions';
+const NVIDIA_HOST   = 'integrate.api.nvidia.com';
+const NVIDIA_PATH   = '/v1/chat/completions';
 
 const FREE_MODELS = [
-  { id: 'mimo-v2.5-free',         label: 'MiMo V2.5 Free',        api: 'opencode', key: OPENCODE_KEY,  avgMs: 3000, vision: false },
-  { id: 'deepseek-v4-flash-free', label: 'DeepSeek V4 Flash Free', api: 'opencode', key: OPENCODE_KEY,  avgMs: 3000, vision: false },
-  { id: 'big-pickle',             label: 'Big Pickle Free',        api: 'opencode', key: OPENCODE_KEY,  avgMs: 3000, vision: false },
-  { id: 'minimax-m3-free',        label: 'MiniMax M3 Free',        api: 'opencode', key: OPENCODE_KEY,  avgMs: 3000, vision: false },
+  { id: 'mimo-v2.5-free',         label: 'MiMo V2.5 Free',        api: 'opencode', avgMs: 3000, vision: false },
+  { id: 'deepseek-v4-flash-free', label: 'DeepSeek V4 Flash Free', api: 'opencode', avgMs: 3000, vision: false },
+  { id: 'big-pickle',             label: 'Big Pickle Free',        api: 'opencode', avgMs: 3000, vision: false },
+  { id: 'minimax-m3-free',        label: 'MiniMax M3 Free',        api: 'opencode', avgMs: 3000, vision: false },
 ];
 
 const PREMIUM_MODEL = {
   id: 'moonshotai/kimi-k2.6', label: 'Kimi K2.6 (Nvidia)',
-  api: 'nvidia', key: NVIDIA_KEY, avgMs: 2000, vision: true, thinking: true, maxTokens: 16384,
+  api: 'nvidia', avgMs: 2000, vision: true, thinking: true, maxTokens: 16384,
   hostname: NVIDIA_HOST, path: NVIDIA_PATH,
 };
 
-// Agent model — dùng kimi-k2.6 qua opencode (hỗ trợ tool_calls tốt)
-const AGENT_MODEL_KEY = 'kimi-k2.6';
-const AGENT_PROVIDERS = {
-  'mimo-v2.5-free':         { label: 'MiMo V2.5 Free',        hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'mimo-v2.5-free' },
-  'deepseek-v4-flash-free': { label: 'DeepSeek V4 Flash Free', hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'deepseek-v4-flash-free' },
-  'big-pickle':             { label: 'Big Pickle Free',         hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'big-pickle' },
-  'kimi-k2.6':              { label: 'Kimi K2.6',              hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'kimi-k2.6' },
-  'nvidia-kimi-k2.6':       { label: 'Kimi K2.6 (NVIDIA)',     hostname: NVIDIA_HOST,   path: NVIDIA_PATH,   model: 'moonshotai/kimi-k2.6', apiKey: NVIDIA_KEY },
+// Agent models — owner có thể chọn
+const AGENT_MODELS = {
+  'mimo-v2.5-free':         { label: 'MiMo V2.5 Free 🆓',        hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'mimo-v2.5-free' },
+  'deepseek-v4-flash-free': { label: 'DeepSeek V4 Flash Free 🆓', hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'deepseek-v4-flash-free' },
+  'big-pickle':             { label: 'Big Pickle Free 🆓',         hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'big-pickle' },
+  'kimi-k2.6':              { label: 'Kimi K2.6 🌙',              hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'kimi-k2.6' },
+  'nvidia-kimi-k2.6':       { label: 'Kimi K2.6 (NVIDIA) 🟩',    hostname: NVIDIA_HOST,   path: NVIDIA_PATH,   model: 'moonshotai/kimi-k2.6', apiKey: NVIDIA_KEY },
+  'minimax-m3-free':        { label: 'MiniMax M3 Free 🆓',        hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'minimax-m3-free' },
+  'nemotron-3-super-free':  { label: 'Nemotron 3 Super Free 🆓',  hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'nemotron-3-super-free' },
+  'qwen3.6-plus-free':      { label: 'Qwen3.6 Plus Free 🆓',      hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'qwen3.6-plus-free' },
 };
+
+// Model mặc định cho agent
+const AGENT_MODEL_DEFAULT = 'mimo-v2.5-free';
+let ownerAgentModel = AGENT_MODEL_DEFAULT;
 
 const userModels = new Map();
 
@@ -183,12 +187,45 @@ function safeResolvePath(inputPath, base) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT TOOLS DEFINITION
+// ── S3 CONFIG (từ MiMo v3)
+// ══════════════════════════════════════════════════════════════════════
+const S3_CONFIGS = {
+  synology: {
+    name: 'Synology C2',
+    endpoint: 'https://us-004.s3.synologyc2.net',
+    bucket: process.env.SYNOLOGY_BUCKET || '(chưa biết bucket - chạy list để xem)',
+    accessKeyId: process.env.SYNOLOGY_KEY_ID || 'usnOfNaBZjVnXEqcKMzZ35wkdkKEdd99',
+    secretAccessKey: process.env.SYNOLOGY_SECRET || 'Ft8RsTm38ZMaY5XJBnwbTrpM9o2aGJgd',
+    note: 'Synology C2 S3-compatible, 15GB free',
+  },
+  storj: {
+    name: 'Storj',
+    endpoint: 'https://gateway.storjshare.io',
+    bucket: process.env.STORJ_BUCKET || '(chưa biết bucket - chạy list để xem)',
+    accessKeyId: process.env.STORJ_KEY_ID || 'jwcfd2i7ijqh3zu6nqjgtxdgogxq',
+    secretAccessKey: process.env.STORJ_SECRET || 'j3zylsrq7q2zqfwk7h54k6t2qmics7fzpajxeyfclsrfmfera5fis',
+    note: 'Storj decentralized S3-compatible, 25GB free',
+  },
+};
+
+function getS3PromptInfo() {
+  return Object.entries(S3_CONFIGS).map(([k,v]) => [
+    `  Provider: ${v.name} (${k})`,
+    `  Endpoint: ${v.endpoint}`,
+    `  Bucket: ${v.bucket}`,
+    `  AccessKeyId: ${v.accessKeyId}`,
+    `  SecretKey: ${v.secretAccessKey}`,
+    `  Note: ${v.note}`,
+  ].join('\n')).join('\n\n');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ── AGENT TOOLS DEFINITION (MiMo v3 đầy đủ)
 // ══════════════════════════════════════════════════════════════════════
 const AGENT_TOOLS = [
   { type: 'function', function: {
     name: 'run_command',
-    description: 'Chạy lệnh shell bất kỳ. Dùng sudo khi cần quyền root. Thêm -y để tắt confirm.',
+    description: 'Chạy lệnh shell bất kỳ trên Linux. Dùng sudo khi cần quyền root. Thêm -y để tắt confirm. cwd có thể là đường dẫn tuyệt đối.',
     parameters: { type: 'object', properties: {
       command: { type: 'string', description: 'Lệnh shell cần chạy' },
       cwd:     { type: 'string', description: 'Thư mục làm việc (optional)' },
@@ -199,15 +236,15 @@ const AGENT_TOOLS = [
     name: 'write_file',
     description: 'Tạo hoặc ghi file trong workspace.',
     parameters: { type: 'object', properties: {
-      path:    { type: 'string', description: 'Đường dẫn file (trong workspace)' },
-      content: { type: 'string', description: 'Nội dung file' },
+      path:    { type: 'string' },
+      content: { type: 'string' },
     }, required: ['path', 'content'] },
   }},
   { type: 'function', function: {
     name: 'read_file',
     description: 'Đọc nội dung file trong workspace.',
     parameters: { type: 'object', properties: {
-      path: { type: 'string', description: 'Đường dẫn file' },
+      path: { type: 'string' },
     }, required: ['path'] },
   }},
   { type: 'function', function: {
@@ -221,63 +258,105 @@ const AGENT_TOOLS = [
     name: 'delete_file',
     description: 'Xóa file hoặc thư mục trong workspace.',
     parameters: { type: 'object', properties: {
-      path: { type: 'string', description: 'Đường dẫn cần xóa' },
+      path: { type: 'string' },
     }, required: ['path'] },
   }},
   { type: 'function', function: {
     name: 'web_search',
     description: 'Tìm kiếm thông tin trên web qua DuckDuckGo.',
     parameters: { type: 'object', properties: {
-      query: { type: 'string', description: 'Từ khóa tìm kiếm' },
-      lang:  { type: 'string', description: 'vi hoặc en', enum: ['vi', 'en'] },
+      query: { type: 'string', description: 'Từ khóa tìm kiếm 3-6 từ' },
+      lang:  { type: 'string', enum: ['vi', 'en'] },
     }, required: ['query'] },
   }},
   { type: 'function', function: {
     name: 'fetch_url',
-    description: 'Lấy nội dung một trang web.',
+    description: 'Lấy nội dung trang web.',
     parameters: { type: 'object', properties: {
-      url:     { type: 'string', description: 'URL cần fetch' },
-      extract: { type: 'string', description: 'text hoặc html', enum: ['text', 'html'] },
+      url:     { type: 'string' },
+      extract: { type: 'string', enum: ['text', 'html'] },
     }, required: ['url'] },
   }},
   { type: 'function', function: {
     name: 'browser_navigate',
-    description: 'Điều hướng trình duyệt đến URL.',
+    description: 'Điều hướng browser đến URL.',
     parameters: { type: 'object', properties: {
-      url:     { type: 'string', description: 'URL cần mở' },
-      timeout: { type: 'number', description: 'Timeout ms (mặc định 15000)' },
+      url:     { type: 'string' },
+      timeout: { type: 'number' },
     }, required: ['url'] },
   }},
   { type: 'function', function: {
     name: 'browser_screenshot',
     description: 'Chụp ảnh trang web, lưu vào workspace.',
     parameters: { type: 'object', properties: {
-      filename: { type: 'string', description: 'Tên file ảnh' },
-      fullPage: { type: 'boolean', description: 'Chụp toàn trang' },
-      selector: { type: 'string', description: 'CSS selector element cụ thể' },
+      filename: { type: 'string' },
+      fullPage: { type: 'boolean' },
+      selector: { type: 'string' },
     }, required: [] },
   }},
   { type: 'function', function: {
     name: 'browser_eval',
     description: 'Chạy JavaScript trong trang web.',
     parameters: { type: 'object', properties: {
-      expression: { type: 'string', description: 'Biểu thức JavaScript' },
+      expression: { type: 'string' },
+      timeout:    { type: 'number' },
     }, required: ['expression'] },
   }},
   { type: 'function', function: {
-    name: 'browser_accessibility',
-    description: 'Lấy cây accessibility của trang (không cần đọc ảnh).',
+    name: 'browser_resize',
+    description: 'Thay đổi kích thước viewport browser.',
     parameters: { type: 'object', properties: {
-      selector: { type: 'string', description: 'CSS selector (optional)' },
-      depth:    { type: 'number', description: 'Độ sâu cây (mặc định 5)' },
-    }, required: [] },
+      width:  { type: 'number' },
+      height: { type: 'number' },
+    }, required: ['width', 'height'] },
   }},
   { type: 'function', function: {
     name: 'browser_console_logs',
     description: 'Lấy console logs từ trang web.',
     parameters: { type: 'object', properties: {
-      limit: { type: 'number', description: 'Số dòng tối đa (mặc định 50)' },
+      limit: { type: 'number' },
+      clear: { type: 'boolean' },
     }, required: [] },
+  }},
+  { type: 'function', function: {
+    name: 'browser_network',
+    description: 'Xem network requests của trang web.',
+    parameters: { type: 'object', properties: {
+      limit:  { type: 'number' },
+      filter: { type: 'string' },
+      clear:  { type: 'boolean' },
+    }, required: [] },
+  }},
+  { type: 'function', function: {
+    name: 'browser_emulate',
+    description: 'Giả lập thiết bị di động.',
+    parameters: { type: 'object', properties: {
+      device: { type: 'string', description: 'iPhone 14, iPad, Pixel 7, Galaxy S23, hoặc reset' },
+      width:  { type: 'number' },
+      height: { type: 'number' },
+      mobile: { type: 'boolean' },
+    }, required: [] },
+  }},
+  { type: 'function', function: {
+    name: 'browser_accessibility',
+    description: 'Lấy cây accessibility của trang (không cần đọc ảnh).',
+    parameters: { type: 'object', properties: {
+      selector: { type: 'string' },
+      depth:    { type: 'number' },
+    }, required: [] },
+  }},
+  { type: 'function', function: {
+    name: 'browser_screencast_start',
+    description: 'Bắt đầu quay màn hình browser, lưu thành MP4.',
+    parameters: { type: 'object', properties: {
+      filename: { type: 'string' },
+      fps:      { type: 'number' },
+    }, required: [] },
+  }},
+  { type: 'function', function: {
+    name: 'browser_screencast_stop',
+    description: 'Dừng quay màn hình và lưu file MP4.',
+    parameters: { type: 'object', properties: {}, required: [] },
   }},
 ];
 
@@ -288,10 +367,14 @@ let _browser = null;
 let _page    = null;
 let _consoleLogs = [];
 let _networkLog  = [];
+let _screencastActive = false;
+let _screencastFrames = [];
+let _screencastSession = null;
+let _screencastFilename = 'screencast.mp4';
 
 function findChromePath() {
   if (IS_LINUX) {
-    for (const cmd of ['which google-chrome', 'which chromium-browser', 'which chromium']) {
+    for (const cmd of ['which google-chrome', 'which chromium-browser', 'which chromium', 'which google-chrome-stable']) {
       try { return execSync(cmd, { stdio: ['pipe','pipe','pipe'] }).toString().trim(); } catch {}
     }
   }
@@ -309,6 +392,8 @@ async function getBrowser() {
   const args = [
     '--disable-dev-shm-usage', '--disable-gpu', '--no-first-run', '--no-zygote',
     '--no-sandbox', '--disable-setuid-sandbox', '--mute-audio', '--disable-extensions',
+    '--disable-background-networking', '--disable-default-apps', '--no-default-browser-check',
+    '--disable-accelerated-2d-canvas', '--disable-web-security', '--font-render-hinting=none',
   ];
   const opts = { headless: 'new', args };
   const chrome = findChromePath();
@@ -324,22 +409,24 @@ async function getPage() {
     _consoleLogs = []; _networkLog = [];
     _page.on('console', msg => {
       _consoleLogs.push({ level: msg.type(), text: msg.text(), time: Date.now() });
-      if (_consoleLogs.length > 200) _consoleLogs.shift();
+      if (_consoleLogs.length > 500) _consoleLogs.shift();
     });
     _page.on('request', req => {
-      _networkLog.push({ type: 'req', method: req.method(), url: req.url(), time: Date.now() });
+      _networkLog.push({ type: 'request', method: req.method(), url: req.url(), time: Date.now() });
       if (_networkLog.length > 200) _networkLog.shift();
+    });
+    _page.on('response', res => {
+      _networkLog.push({ type: 'response', status: res.status(), url: res.url(), time: Date.now() });
     });
   }
   return _page;
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT TOOL EXECUTOR
+// ── AGENT TOOL EXECUTOR (MiMo v3 đầy đủ)
 // ══════════════════════════════════════════════════════════════════════
 async function executeAgentTool(name, args) {
 
-  // run_command
   if (name === 'run_command') {
     return new Promise(resolve => {
       let safeCwd = WORKSPACE_PATH;
@@ -350,15 +437,18 @@ async function executeAgentTool(name, args) {
       const timeout = args.timeout || 300000;
       const env = { ...process.env, DEBIAN_FRONTEND: 'noninteractive' };
       exec(cmd, { cwd: safeCwd, timeout, maxBuffer: 1024*1024*4, env }, (err, stdout, stderr) => {
-        resolve({
-          ok: !err,
-          output: ((stdout||'') + (stderr ? '\n[stderr]\n'+stderr : '')).trim() || '(no output)',
-        });
+        // Auto sudo nếu permission denied
+        if (err && (stderr.includes('Permission denied') || stderr.includes('EACCES')) && !cmd.trimStart().startsWith('sudo')) {
+          exec('sudo ' + cmd, { cwd: safeCwd, timeout, maxBuffer: 1024*1024*4, env }, (err2, stdout2, stderr2) => {
+            resolve({ ok: !err2, output: ((stdout2||'') + (stderr2 ? '\n[stderr]\n'+stderr2 : '')).trim() || '(no output)', note: 'Auto sudo' });
+          });
+          return;
+        }
+        resolve({ ok: !err, output: ((stdout||'') + (stderr ? '\n[stderr]\n'+stderr : '')).trim() || '(no output)' });
       });
     });
   }
 
-  // write_file
   if (name === 'write_file') {
     try {
       const abs = safeResolvePath(args.path);
@@ -368,26 +458,21 @@ async function executeAgentTool(name, args) {
     } catch(e) { return { ok: false, output: `❌ ${e.message}` }; }
   }
 
-  // read_file
   if (name === 'read_file') {
     try {
       const abs = safeResolvePath(args.path);
-      const content = readFileSync(abs, 'utf8');
-      return { ok: true, output: content.slice(0, 10000) };
+      return { ok: true, output: readFileSync(abs, 'utf8').slice(0, 10000) };
     } catch(e) { return { ok: false, output: `❌ ${e.message}` }; }
   }
 
-  // list_dir
   if (name === 'list_dir') {
     try {
       const abs = safeResolvePath(args.path || '.');
       const items = readdirSync(abs, { withFileTypes: true });
-      const lines = items.map(i => (i.isDirectory() ? '📁 ' : '📄 ') + i.name).join('\n');
-      return { ok: true, output: lines || '(empty)' };
+      return { ok: true, output: items.map(i => (i.isDirectory() ? '📁 ' : '📄 ') + i.name).join('\n') || '(empty)' };
     } catch(e) { return { ok: false, output: `❌ ${e.message}` }; }
   }
 
-  // delete_file
   if (name === 'delete_file') {
     try {
       const abs = safeResolvePath(args.path);
@@ -397,7 +482,6 @@ async function executeAgentTool(name, args) {
     } catch(e) { return { ok: false, output: `❌ ${e.message}` }; }
   }
 
-  // web_search — dùng DuckDuckGo
   if (name === 'web_search') {
     const kl = (args.lang === 'en') ? 'us-en' : 'vn-vi';
     const q  = encodeURIComponent(args.query);
@@ -409,15 +493,13 @@ async function executeAgentTool(name, args) {
       while ((m = re.exec(html)) !== null && results.length < 6) {
         const title   = stripHtml(m[2]).trim().slice(0, 100);
         const snippet = stripHtml(m[3]).trim().slice(0, 250);
-        const link    = m[1];
-        if (title && snippet) results.push(`${results.length+1}. **${title}**\n   ${snippet}\n   ${link}`);
+        if (title && snippet) results.push(`${results.length+1}. **${title}**\n   ${snippet}\n   ${m[1]}`);
       }
       if (results.length > 0) return { ok: true, output: results.join('\n\n') };
       return { ok: false, output: `Không tìm thấy kết quả cho "${args.query}"` };
     } catch(e) { return { ok: false, output: `❌ Search lỗi: ${e.message}` }; }
   }
 
-  // fetch_url
   if (name === 'fetch_url') {
     try {
       const html = await rawFetch(args.url, { timeout: 15000, maxBytes: 200000 });
@@ -426,17 +508,14 @@ async function executeAgentTool(name, args) {
     } catch(e) { return { ok: false, output: `❌ Fetch lỗi: ${e.message}` }; }
   }
 
-  // browser_navigate
   if (name === 'browser_navigate') {
     try {
       const page = await getPage();
       await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: args.timeout || 15000 });
-      const title = await page.title();
-      return { ok: true, output: `✓ Đã mở: ${page.url()}\n   Tiêu đề: ${title}` };
+      return { ok: true, output: `✓ Đã mở: ${page.url()}\n   Tiêu đề: ${await page.title()}` };
     } catch(e) { return { ok: false, output: `❌ Navigate lỗi: ${e.message}` }; }
   }
 
-  // browser_screenshot
   if (name === 'browser_screenshot') {
     try {
       const page = await getPage();
@@ -454,7 +533,6 @@ async function executeAgentTool(name, args) {
     } catch(e) { return { ok: false, output: `❌ Screenshot lỗi: ${e.message}` }; }
   }
 
-  // browser_eval
   if (name === 'browser_eval') {
     try {
       const page = await getPage();
@@ -465,7 +543,59 @@ async function executeAgentTool(name, args) {
     } catch(e) { return { ok: false, output: `❌ Eval lỗi: ${e.message}` }; }
   }
 
-  // browser_accessibility
+  if (name === 'browser_resize') {
+    try {
+      const page = await getPage();
+      await page.setViewport({ width: args.width, height: args.height });
+      return { ok: true, output: `✓ Viewport: ${args.width}x${args.height}` };
+    } catch(e) { return { ok: false, output: `❌ Resize lỗi: ${e.message}` }; }
+  }
+
+  if (name === 'browser_console_logs') {
+    const limit = args.limit || 50;
+    const logs  = _consoleLogs.slice(-limit);
+    if (args.clear) _consoleLogs.length = 0;
+    if (!logs.length) return { ok: true, output: '(không có console log)' };
+    return { ok: true, output: logs.map(l => `[${l.level.toUpperCase()}] ${l.text}`).join('\n') };
+  }
+
+  if (name === 'browser_network') {
+    let logs = [..._networkLog];
+    if (args.filter) logs = logs.filter(l => l.url.includes(args.filter));
+    logs = logs.slice(-(args.limit || 50));
+    if (args.clear) _networkLog.length = 0;
+    if (!logs.length) return { ok: true, output: '(không có network log)' };
+    return { ok: true, output: logs.map(l => l.type === 'request' ? `→ ${l.method} ${l.url}` : `← ${l.status} ${l.url}`).join('\n') };
+  }
+
+  if (name === 'browser_emulate') {
+    try {
+      const page = await getPage();
+      if (args.device === 'reset') {
+        await page.emulate({ viewport: { width: 1280, height: 800, isMobile: false }, userAgent: '' });
+        return { ok: true, output: '✓ Reset về desktop mode' };
+      }
+      const DEVICES = {
+        'iPhone 14': { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15' },
+        'iPhone SE': { width: 375, height: 667, isMobile: true, hasTouch: true, deviceScaleFactor: 2, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15' },
+        'iPad':      { width: 768, height: 1024, isMobile: true, hasTouch: true, deviceScaleFactor: 2, ua: 'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) AppleWebKit/605.1.15' },
+        'Pixel 7':   { width: 412, height: 915, isMobile: true, hasTouch: true, deviceScaleFactor: 2.625, ua: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36' },
+        'Galaxy S23':{ width: 360, height: 780, isMobile: true, hasTouch: true, deviceScaleFactor: 3, ua: 'Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36' },
+      };
+      const preset = args.device ? DEVICES[args.device] : null;
+      if (preset) {
+        await page.setViewport({ width: preset.width, height: preset.height, isMobile: preset.isMobile, hasTouch: preset.hasTouch, deviceScaleFactor: preset.deviceScaleFactor });
+        await page.setUserAgent(preset.ua);
+        return { ok: true, output: `✓ Giả lập: ${args.device} (${preset.width}x${preset.height})` };
+      }
+      if (args.width && args.height) {
+        await page.setViewport({ width: args.width, height: args.height, isMobile: args.mobile || false });
+        return { ok: true, output: `✓ Custom viewport: ${args.width}x${args.height}` };
+      }
+      return { ok: false, output: `❌ Devices: ${Object.keys(DEVICES).join(', ')} hoặc "reset"` };
+    } catch(e) { return { ok: false, output: `❌ Emulate lỗi: ${e.message}` }; }
+  }
+
   if (name === 'browser_accessibility') {
     try {
       const page = await getPage();
@@ -490,48 +620,94 @@ async function executeAgentTool(name, args) {
     } catch(e) { return { ok: false, output: `❌ Accessibility lỗi: ${e.message}` }; }
   }
 
-  // browser_console_logs
-  if (name === 'browser_console_logs') {
-    const limit = args.limit || 50;
-    const logs  = _consoleLogs.slice(-limit);
-    if (!logs.length) return { ok: true, output: '(không có console log)' };
-    return { ok: true, output: logs.map(l => `[${l.level.toUpperCase()}] ${l.text}`).join('\n') };
+  if (name === 'browser_screencast_start') {
+    try {
+      if (_screencastActive) return { ok: false, output: '❌ Screencast đang chạy. Dừng trước bằng browser_screencast_stop.' };
+      const page = await getPage();
+      _screencastFilename = args.filename || `screencast_${Date.now()}.mp4`;
+      _screencastFrames = [];
+      _screencastActive = true;
+      _screencastSession = await page.target().createCDPSession();
+      await _screencastSession.send('Page.startScreencast', { format: 'jpeg', quality: 70, maxWidth: 1280, maxHeight: 720, everyNthFrame: 1 });
+      _screencastSession.on('Page.screencastFrame', async (frame) => {
+        _screencastFrames.push(frame.data);
+        await _screencastSession.send('Page.screencastFrameAck', { sessionId: frame.sessionId });
+      });
+      return { ok: true, output: `✓ Bắt đầu screencast (${args.fps || 5}fps). Dùng browser_screencast_stop để lưu.` };
+    } catch(e) { _screencastActive = false; return { ok: false, output: `❌ Screencast start lỗi: ${e.message}` }; }
+  }
+
+  if (name === 'browser_screencast_stop') {
+    try {
+      if (!_screencastActive) return { ok: false, output: '❌ Không có screencast đang chạy.' };
+      await _screencastSession.send('Page.stopScreencast');
+      _screencastActive = false;
+      const frameCount = _screencastFrames.length;
+      if (frameCount === 0) return { ok: false, output: '❌ Không có frame nào.' };
+      const tmpDir = path.join(WORKSPACE_PATH, '.screencast_tmp');
+      mkdirSync(tmpDir, { recursive: true });
+      for (let i = 0; i < _screencastFrames.length; i++) {
+        writeFileSync(path.join(tmpDir, `frame_${String(i).padStart(6,'0')}.jpg`), Buffer.from(_screencastFrames[i], 'base64'));
+      }
+      const outPath = safeResolvePath(_screencastFilename);
+      await new Promise(res => exec(`ffmpeg -y -framerate 5 -i "${path.join(tmpDir,'frame_%06d.jpg')}" -c:v libx264 -pix_fmt yuv420p "${outPath}" 2>&1`, { timeout: 60000 }, (e) => res({ ok: !e })));
+      rmSync(tmpDir, { recursive: true, force: true });
+      _screencastFrames = [];
+      return { ok: true, output: `✓ Đã lưu: workspace/${path.relative(WORKSPACE_PATH, outPath)} (${frameCount} frames)` };
+    } catch(e) { _screencastActive = false; return { ok: false, output: `❌ Screencast stop lỗi: ${e.message}` }; }
   }
 
   return { ok: false, output: `Unknown tool: ${name}` };
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT SYSTEM PROMPT
+// ── AGENT SYSTEM PROMPT (MiMo v3 cải tiến)
 // ══════════════════════════════════════════════════════════════════════
-const AGENT_SYSTEM = `Bạn là erima_vn AI Agent — phiên bản mở rộng chạy trên hệ thống Linux với đầy đủ khả năng tự động hóa.
+function buildAgentSystemPrompt() {
+  return `Bạn là erima_vn AI Agent — phiên bản mạnh mẽ chạy trên Linux/Ubuntu với đầy đủ khả năng tự động hóa, điều khiển browser, và lưu trữ cloud S3.
 
-## NGUYÊN TẮC:
-1. KHÔNG dừng giữa chừng — dùng tools liên tục cho đến khi task hoàn thành.
-2. Tự quyết định — không hỏi những thứ tự làm được.
-3. Xử lý lỗi tự động — lỗi tool → phân tích → thử cách khác.
-4. Chỉ báo "Hoàn thành" khi có kết quả cụ thể.
+## NGUYÊN TẮC QUAN TRỌNG:
+1. **KHÔNG BAO GIỜ dừng giữa chừng** — task chưa xong thì tiếp tục dùng tools cho đến khi hoàn thành.
+2. **Tự quyết định** — không hỏi user những thứ tự làm được. Chỉ hỏi khi thực sự cần thông tin từ user.
+3. **Xử lý lỗi tự động** — lỗi tool → phân tích → thử cách khác, không dừng.
+4. **Browser** — luôn navigate trước, sau đó dùng accessibility tree hoặc eval để đọc nội dung.
+5. **Shell** — dùng sudo khi cần quyền root. Thêm -y để tắt confirm. Timeout mặc định 5 phút.
+6. **Hoàn thành triệt để** — chỉ báo "Hoàn thành" khi task thực sự xong với kết quả cụ thể.
 
-## TOOLS:
-- run_command: chạy shell Linux (sudo tự động nếu cần)
-- write_file / read_file / list_dir / delete_file: quản lý file trong workspace
-- web_search: tìm kiếm DuckDuckGo
-- fetch_url: lấy nội dung trang web
-- browser_navigate / browser_screenshot / browser_eval / browser_accessibility / browser_console_logs: điều khiển Chrome
+## FLOW XỬ LÝ LỖI:
+- Lỗi permission → thêm sudo (tự động)
+- Package chưa cài → cài rồi thử lại
+- Browser lỗi → thử lại hoặc dùng fetch_url
+- Network lỗi → retry sau vài giây
+
+## S3 CLOUD STORAGE:
+Bạn có 2 S3-compatible bucket (KHÔNG PHẢI AWS, PHẢI dùng --endpoint-url):
+
+${getS3PromptInfo()}
+
+**Cách dùng:**
+Synology: AWS_ACCESS_KEY_ID=usnOfNaBZjVnXEqcKMzZ35wkdkKEdd99 AWS_SECRET_ACCESS_KEY=Ft8RsTm38ZMaY5XJBnwbTrpM9o2aGJgd aws s3 ls --endpoint-url https://us-004.s3.synologyc2.net
+Storj: AWS_ACCESS_KEY_ID=jwcfd2i7ijqh3zu6nqjgtxdgogxq AWS_SECRET_ACCESS_KEY=j3zylsrq7q2zqfwk7h54k6t2qmics7fzpajxeyfclsrfmfera5fis aws s3 ls --endpoint-url https://gateway.storjshare.io
+
+**Nếu chưa biết bucket name → chạy list trước. Nếu aws cli chưa cài → pip install awscli --break-system-packages**
 
 ## SAU KHI DÙNG TOOL:
-- LUÔN viết câu trả lời text cho user sau tool_result
-- Tóm tắt kết quả, giải thích đã làm gì
+- LUÔN viết câu trả lời text sau tool_result
+- KHÔNG IM LẶNG sau tool
+- Tóm tắt kết quả, giải thích đã làm gì, trả lời câu hỏi ban đầu
 
 Trả lời tiếng Việt. Xưng hô với chủ nhân (victory_vn) ấm áp, Gen Z.`;
+}
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT API CALL (streaming + tool_calls)
+// ── AGENT API CALL
 // ══════════════════════════════════════════════════════════════════════
 async function callAgentAI(messages, onText) {
-  const provider = AGENT_PROVIDERS[AGENT_MODEL_KEY];
+  const modelKey = ownerAgentModel;
+  const provider = AGENT_MODELS[modelKey] || AGENT_MODELS[AGENT_MODEL_DEFAULT];
   const key      = provider.apiKey || getCurrentOCKey();
-  const body     = JSON.stringify({
+
+  const body = JSON.stringify({
     model:       provider.model,
     messages,
     tools:       AGENT_TOOLS,
@@ -585,37 +761,42 @@ async function callAgentAI(messages, onText) {
       res.on('error', reject);
     });
     req.on('error', reject);
-    req.setTimeout(120000, () => { req.destroy(); reject(new Error('Agent AI timeout')); });
+    req.setTimeout(180000, () => { req.destroy(); reject(new Error('Agent AI timeout')); });
     req.write(body); req.end();
   });
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT RUNNER — chạy vòng lặp tool_calls, stream về Discord
+// ── AGENT RUNNER
 // ══════════════════════════════════════════════════════════════════════
 async function runAgentLoop(userQuery, channel, replyFn) {
+  const sysPrompt = buildAgentSystemPrompt();
   const messages = [
-    { role: 'user', content: AGENT_SYSTEM },
-    { role: 'assistant', content: 'Đã hiểu. Sẵn sàng!' },
+    { role: 'user', content: sysPrompt },
+    { role: 'assistant', content: 'Đã hiểu. Sẵn sàng hỗ trợ chủ nhân!' },
     { role: 'user', content: userQuery },
   ];
 
   let iterations = 0;
-  const MAX_ITER = 30;
+  const MAX_ITER = 50;
   let lastTextMsg = null;
   let toolWasCalledLastRound = false;
   let firstReply = true;
 
-  // Thông báo bắt đầu
-  try { lastTextMsg = await replyFn('⚙️ **Agent đang xử lý...** (có thể mất vài phút)'); } catch {}
+  try { lastTextMsg = await replyFn(`⚙️ **Agent đang xử lý...** (model: ${AGENT_MODELS[ownerAgentModel]?.label || ownerAgentModel})`); } catch {}
 
   while (iterations++ < MAX_ITER) {
     await channel.sendTyping();
 
-    let accText = '';
-    const result = await callAgentAI(messages, (delta) => { accText += delta; });
+    let result;
+    try {
+      result = await callAgentAI(messages, null);
+    } catch(e) {
+      console.error('❌ Agent AI call error:', e.message);
+      try { await channel.send(`❌ Agent AI lỗi: ${e.message.slice(0,100)}`); } catch {}
+      break;
+    }
 
-    // Thêm assistant msg vào history
     const assistantMsg = { role: 'assistant', content: result.text || '' };
     if (result.toolCalls.length > 0) {
       assistantMsg.tool_calls = result.toolCalls.map(tc => ({
@@ -625,7 +806,6 @@ async function runAgentLoop(userQuery, channel, replyFn) {
     }
     messages.push(assistantMsg);
 
-    // Stream text ra Discord (nếu có)
     if (result.text?.trim()) {
       const chunks = splitMessage(result.text.trim());
       if (firstReply && lastTextMsg) {
@@ -637,12 +817,9 @@ async function runAgentLoop(userQuery, channel, replyFn) {
       for (let i = 1; i < chunks.length; i++) await channel.send(chunks[i]);
     }
 
-    // Không có tool call → xong
     if (!result.toolCalls.length) {
-      // AI im lặng sau tool → force summary
       if (toolWasCalledLastRound && !result.text?.trim()) {
-        console.log('  [agent] AI im lặng sau tool → force summary');
-        messages.push({ role: 'user', content: 'Dựa trên kết quả vừa rồi, hãy tóm tắt cho chủ nhân.' });
+        messages.push({ role: 'user', content: 'Dựa trên kết quả vừa rồi, hãy tóm tắt đầy đủ cho chủ nhân.' });
         const finalRes = await callAgentAI(messages, null);
         if (finalRes.text?.trim()) {
           const chunks = splitMessage(finalRes.text.trim());
@@ -654,27 +831,30 @@ async function runAgentLoop(userQuery, channel, replyFn) {
 
     toolWasCalledLastRound = true;
 
-    // Chạy từng tool
     for (const tc of result.toolCalls) {
       let args = {};
       try { args = JSON.parse(tc.args); } catch {}
 
-      console.log(`  🔧 [Agent] Tool: ${tc.name} args: ${JSON.stringify(args).slice(0, 120)}`);
+      console.log(`  🔧 [Agent] Tool: ${tc.name} args: ${JSON.stringify(args).slice(0,120)}`);
 
-      // Thông báo đang dùng tool (ngắn gọn)
       const toolLabels = {
-        run_command:           `🖥️ Chạy: \`${(args.command||'').slice(0,60)}\``,
-        write_file:            `📝 Ghi file: \`${args.path||''}\``,
-        read_file:             `📖 Đọc: \`${args.path||''}\``,
-        list_dir:              `📁 Xem thư mục`,
-        delete_file:           `🗑️ Xóa: \`${args.path||''}\``,
-        web_search:            `🔍 Tìm: \`${args.query||''}\``,
-        fetch_url:             `🌐 Fetch: \`${(args.url||'').slice(0,60)}\``,
-        browser_navigate:      `🌐 Browser → \`${(args.url||'').slice(0,60)}\``,
-        browser_screenshot:    `📷 Screenshot`,
-        browser_eval:          `⚡ Browser JS`,
-        browser_accessibility: `♿ Accessibility tree`,
-        browser_console_logs:  `📋 Console logs`,
+        run_command:              `🖥️ Chạy: \`${(args.command||'').slice(0,60)}\``,
+        write_file:               `📝 Ghi file: \`${args.path||''}\``,
+        read_file:                `📖 Đọc: \`${args.path||''}\``,
+        list_dir:                 `📁 Xem thư mục`,
+        delete_file:              `🗑️ Xóa: \`${args.path||''}\``,
+        web_search:               `🔍 Tìm: \`${args.query||''}\``,
+        fetch_url:                `🌐 Fetch: \`${(args.url||'').slice(0,60)}\``,
+        browser_navigate:         `🌐 Browser → \`${(args.url||'').slice(0,60)}\``,
+        browser_screenshot:       `📷 Screenshot`,
+        browser_eval:             `⚡ Browser JS`,
+        browser_resize:           `📐 Resize viewport`,
+        browser_accessibility:    `♿ Accessibility tree`,
+        browser_console_logs:     `📋 Console logs`,
+        browser_network:          `🔌 Network logs`,
+        browser_emulate:          `📱 Giả lập thiết bị: ${args.device||''}`,
+        browser_screencast_start: `🎥 Bắt đầu quay màn hình`,
+        browser_screencast_stop:  `🎬 Dừng quay màn hình`,
       };
       const label = toolLabels[tc.name] || `🔧 ${tc.name}`;
       try { await channel.send(`> ${label}`); } catch {}
@@ -690,12 +870,32 @@ async function runAgentLoop(userQuery, channel, replyFn) {
   }
 
   if (iterations >= MAX_ITER) {
-    await channel.send('⚠️ Agent đã đạt giới hạn vòng lặp (30). Dừng lại~');
+    await channel.send('⚠️ Agent đã đạt giới hạn vòng lặp (50). Dừng lại~');
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── SEARCH (DuckDuckGo + Wikipedia) — dùng cho chat thường
+// ── DETECT AGENT TASK (phân biệt câu hỏi thường vs task agent)
+// ══════════════════════════════════════════════════════════════════════
+const AGENT_TASK_RE = [
+  /\b(chạy|run|thực thi|execute|cài|install|tạo file|write file|xóa|delete|copy|move)\b/i,
+  /\b(mở trang|mở web|browse|truy cập|screenshot|chụp màn|quay màn)\b/i,
+  /\b(tìm kiếm web|search web|google|duckduckgo)\b/i,
+  /\b(shell|bash|terminal|lệnh|command)\b/i,
+  /\b(deploy|server|nginx|apache|docker|pm2|node server)\b/i,
+  /\b(upload|download|s3|backup|lưu cloud)\b/i,
+  /\b(neofetch|htop|ps aux|ls -la|pwd|whoami)\b/i,
+  /\b(viết code|tạo script|build|compile|test)\b/i,
+  /\b(git |npm |pip |apt |brew )\b/i,
+  /```[\s\S]+```/,
+];
+
+function isAgentTask(text) {
+  return AGENT_TASK_RE.some(re => re.test(text));
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ── SEARCH (DuckDuckGo + Wikipedia)
 // ══════════════════════════════════════════════════════════════════════
 const UA_LIST = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -722,8 +922,7 @@ function rawFetch(url, opts = {}, redirectCount = 0) {
       },
     }, res => {
       if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
-        const next = res.headers.location.startsWith('http')
-          ? res.headers.location : new URL(res.headers.location, url).href;
+        const next = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
         res.resume(); return resolve(rawFetch(next, opts, redirectCount + 1));
       }
       const enc = (res.headers['content-encoding'] || '').toLowerCase(); let stream = res;
@@ -761,8 +960,7 @@ async function searchDDG(query, maxResults = 5) {
     while ((m = re.exec(html)) !== null && results.length < maxResults) {
       const title   = stripHtml(m[2]).trim().slice(0, 100);
       const snippet = stripHtml(m[3]).trim().slice(0, 300);
-      const link    = m[1];
-      if (title && snippet) results.push({ title, snippet, link });
+      if (title && snippet) results.push({ title, snippet, link: m[1] });
     }
     if (results.length > 0) return results.map((r, i) => `[${i+1}] **${r.title}**\n${r.snippet}\n${r.link}`).join('\n\n');
     const json = await rawFetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1', { timeout: 10000 });
@@ -771,7 +969,7 @@ async function searchDDG(query, maxResults = 5) {
     if (data.AbstractText) out.push('📌 ' + data.AbstractText.slice(0, 500));
     (data.RelatedTopics || []).slice(0, 4).forEach(t => t.Text && out.push('• ' + t.Text.slice(0, 200)));
     return out.length > 0 ? out.join('\n\n') : null;
-  } catch(e) { console.warn('⚠️ DDG:', e.message.slice(0, 60)); return null; }
+  } catch(e) { return null; }
 }
 
 async function searchWikipedia(query, lang = 'vi') {
@@ -797,22 +995,16 @@ const NO_SEARCH_RE = [
   /^(hi|hello|chào|xin chào|hey|oke|ok|cảm ơn|thanks|bye|tạm biệt|haha|lol)\b/i,
   /```[\s\S]+```/, /^\s*[\d\s\+\-\*\/\^\(\)=]+\s*$/,
   /\b(def |function |class |import |const |let |var )\b/i,
-  /\b(tính|đạo hàm|tích phân|giải phương trình)\b/i,
 ];
 const SEARCH_RE = [
-  /\b(tin tức|news|hôm nay|mới nhất|latest|xảy ra|sự kiện|cập nhật|breaking)\b/i,
-  /\b(giá|price|bitcoin|btc|eth|crypto|vàng|gold|usd|tỷ giá|chứng khoán)\b/i,
-  /\b(thời tiết|weather|mưa|bão|dự báo|nhiệt độ)\b/i,
-  /\b(tìm|search|review|đánh giá|so sánh|giới thiệu|nói về|tra|lookup)\b/i,
+  /\b(tin tức|news|hôm nay|mới nhất|latest|xảy ra|sự kiện|cập nhật)\b/i,
+  /\b(giá|price|bitcoin|btc|eth|crypto|vàng|gold|usd|tỷ giá)\b/i,
+  /\b(thời tiết|weather|mưa|bão|dự báo)\b/i,
+  /\b(tìm|search|review|đánh giá|so sánh|tra|lookup)\b/i,
   /\b(là gì|là ai|ở đâu|khi nào|tại sao|how|who|what|where|when|why)\b/i,
-  /\b(kết quả|score|trận|giải đấu|phim|album|ra mắt|release)\b/i,
-  /\b(năm \d{4}|năm nay|năm ngoái|xu hướng|trend|tương lai)\b/i,
-  /\b(github|npm|package|framework|api|docs|install|setup|deploy|hosting)\b/i,
+  /\b(kết quả|score|trận|giải đấu|phim|album|ra mắt)\b/i,
+  /\b(github|npm|package|framework|api|docs)\b/i,
   /\b[\w-]+\.(dev|io|app|ai|co|gg|net|org|com)\b/i,
-  /\b(grandfathered|legacy|pricing|plan|tier|subscription|free tier|paid|billing|cost)\b/i,
-  /\b(platform|service|tool|website|nền tảng|dịch vụ|trang web|ứng dụng)\b/i,
-  /\b(có phải|còn không|đang|hiện tại|hiện nay|vẫn|still|currently|available)\b/i,
-  /\b(cho mình biết|cho tao biết|tìm hiểu|nghiên cứu|check|kiểm tra)\b/i,
 ];
 
 function extractUrls(text) {
@@ -861,10 +1053,10 @@ function getPool(hostname) {
 }
 
 async function callAIRaw(model, messages, maxTokens = 65536, timeoutMs = 90000, imageParts = []) {
-  const endpoint = model.api === 'nvidia' ? NVIDIA_ENDPOINT : OPENCODE_ENDPOINT;
+  const hostname = model.hostname || (model.api === 'nvidia' ? NVIDIA_HOST : OPENCODE_HOST);
+  const apiPath  = model.path    || (model.api === 'nvidia' ? NVIDIA_PATH : OPENCODE_PATH);
   const key      = model.api === 'nvidia' ? NVIDIA_KEY : getCurrentOCKey();
-  const parsed   = new URL(endpoint);
-  const pool     = getPool(parsed.hostname);
+  const pool     = getPool(hostname);
 
   let finalMessages = messages;
   if (imageParts.length > 0) {
@@ -879,9 +1071,7 @@ async function callAIRaw(model, messages, maxTokens = 65536, timeoutMs = 90000, 
         }
         return { ...m, content: contentArr };
       } else {
-        const ocrLines = imageParts.map(img =>
-          img.ocrText ? `[📷 ${img.filename} — OCR]:\n${img.ocrText.slice(0, 3000)}` : `[📷 ${img.filename} — ảnh]`
-        ).join('\n\n');
+        const ocrLines = imageParts.map(img => img.ocrText ? `[📷 ${img.filename} — OCR]:\n${img.ocrText.slice(0, 3000)}` : `[📷 ${img.filename}]`).join('\n\n');
         return { ...m, content: (m.content ? m.content + '\n\n' : '') + ocrLines };
       }
     });
@@ -897,7 +1087,7 @@ async function callAIRaw(model, messages, maxTokens = 65536, timeoutMs = 90000, 
   }
 
   const bodyData = JSON.stringify(reqBody);
-  const extraHeaders = model.api === 'opencode' ? {
+  const extraHeaders = model.api === 'opencode' || !model.api ? {
     'x-opencode-client':  'cli',
     'x-opencode-session': require('crypto').randomUUID(),
     'x-opencode-request': require('crypto').randomUUID(),
@@ -905,7 +1095,7 @@ async function callAIRaw(model, messages, maxTokens = 65536, timeoutMs = 90000, 
   } : { 'accept': 'application/json' };
 
   const { statusCode, body } = await pool.request({
-    method: 'POST', path: parsed.pathname,
+    method: 'POST', path: apiPath,
     headers: {
       'content-type':   'application/json',
       'content-length': Buffer.byteLength(bodyData).toString(),
@@ -917,17 +1107,14 @@ async function callAIRaw(model, messages, maxTokens = 65536, timeoutMs = 90000, 
 
   const raw = await body.text();
   if (!raw?.trim()) throw new Error(`Empty response [HTTP ${statusCode}]`);
-  let json;
-  try { json = JSON.parse(raw); } catch {
-    throw new Error(`JSON parse failed [HTTP ${statusCode}]: ${raw.slice(0, 80)}`);
-  }
+  let json; try { json = JSON.parse(raw); } catch { throw new Error(`JSON parse failed [HTTP ${statusCode}]: ${raw.slice(0, 80)}`); }
   if (json.error) {
     const msg = json.error.message || JSON.stringify(json.error);
-    if (/insufficient_credits|quota/i.test(msg) && model.api === 'opencode') rotateOCKey(key);
+    if (/insufficient_credits|quota/i.test(msg)) rotateOCKey(key);
     throw new Error(msg);
   }
   const content = json?.choices?.[0]?.message?.content;
-  if (content === undefined || content === null) throw new Error(`Unexpected response shape from ${model.label}`);
+  if (content === undefined || content === null) throw new Error(`Unexpected response shape`);
   if (Array.isArray(content)) { const t = content.find(b => b.type === 'text'); return (t?.text || '').trim(); }
   return content.trim();
 }
@@ -945,16 +1132,16 @@ async function callAIWithFallback(userId, messages, maxTokens = 65536, imagePart
     updateModelSpeed(primary.id, Date.now() - start);
     return result;
   } catch(e) {
-    console.warn(`⚠️ [AI] ${primary.label}: ${e.message.slice(0, 80)} → fallback`);
+    console.warn(`⚠️ [AI] ${primary.label}: ${e.message.slice(0,80)} → fallback`);
     const fallbacks = isFree ? FREE_MODELS.filter(m => m.id !== primary.id) : FREE_MODELS;
     for (const fb of fallbacks) {
       try {
         const r = await callAIRaw(fb, messages, maxTokens, 90000, imageParts);
         updateModelSpeed(fb.id, Date.now() - start);
         return r;
-      } catch(e2) { console.warn(`  ✗ ${fb.label}: ${e2.message.slice(0, 60)}`); }
+      } catch(e2) { console.warn(`  ✗ ${fb.label}: ${e2.message.slice(0,60)}`); }
     }
-    throw new Error(`Tất cả model lỗi: ${e.message.slice(0, 100)}`);
+    throw new Error(`Tất cả model lỗi: ${e.message.slice(0,100)}`);
   }
 }
 
@@ -974,9 +1161,7 @@ const SYSTEM_BASE = `Bạn là erima_vn — AI trợ lý Discord thông minh, th
 [QUY TẮC] Không nội dung hại/18+/vi phạm pháp luật.
 
 [🔍 TÌM KIẾM] Bạn CÓ khả năng tìm kiếm web real-time qua DuckDuckGo + Wikipedia.
-TUYỆT ĐỐI không nói "không có kết nối real-time". Khi có [Kết quả tìm kiếm] → tổng hợp tự nhiên.
-
-[SAU KHI TÌM KIẾM] Luôn trả lời text đầy đủ. Không im lặng.`;
+TUYỆT ĐỐI không nói "không có kết nối real-time". Khi có [Kết quả tìm kiếm] → tổng hợp tự nhiên.`;
 
 const SYSTEM_OWNER = SYSTEM_BASE + `
 
@@ -1015,9 +1200,7 @@ const trackedUsers  = new Map();
 let activeRequests  = 0;
 const tokenLimits   = new Map();
 const DEFAULT_TOKENS = 65536;
-
-// Track active agent sessions per channel (để chặn 2 agent cùng lúc)
-const agentSessions = new Map(); // channelId → true
+const agentSessions  = new Map();
 
 function getMaxTokens(gid) { const l = tokenLimits.get(gid || 'dm'); return l?.enabled ? l.maxTokens : DEFAULT_TOKENS; }
 
@@ -1087,20 +1270,16 @@ async function downloadBuffer(url, maxBytes = 10 * 1024 * 1024) {
   });
 }
 
-// OCR
 let Tesseract = null;
-try { Tesseract = require('tesseract.js'); console.log('✅ Tesseract.js loaded'); }
-catch { console.log('ℹ️ Tesseract.js chưa cài'); }
+try { Tesseract = require('tesseract.js'); } catch {}
 
-async function ocrImage(buffer, filename) {
-  if (Tesseract) {
-    try {
-      const { data: { text } } = await Tesseract.recognize(buffer, 'vie+eng', { logger: () => {} });
-      const cleaned = text.replace(/\s+/g, ' ').trim();
-      if (cleaned.length > 20) return cleaned;
-    } catch(e) { console.warn('⚠️ Tesseract:', e.message.slice(0, 60)); }
-  }
-  return null;
+async function ocrImage(buffer) {
+  if (!Tesseract) return null;
+  try {
+    const { data: { text } } = await Tesseract.recognize(buffer, 'vie+eng', { logger: () => {} });
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    return cleaned.length > 20 ? cleaned : null;
+  } catch { return null; }
 }
 
 async function parseAttachments(msg) {
@@ -1113,10 +1292,9 @@ async function parseAttachments(msg) {
       if (att.size > 10*1024*1024) { textParts.push(`[${name}: quá lớn]`); continue; }
       try {
         const buf = await downloadBuffer(att.url, 10*1024*1024);
-        const b64 = buf.toString('base64');
-        const ocrText = await ocrImage(buf, name);
-        imageParts.push({ base64: b64, mimeType: getMimeType(ext), filename: name, ocrText });
-      } catch(e) { textParts.push(`[${name}: lỗi tải]`); }
+        const ocrText = await ocrImage(buf);
+        imageParts.push({ base64: buf.toString('base64'), mimeType: getMimeType(ext), filename: name, ocrText });
+      } catch { textParts.push(`[${name}: lỗi tải]`); }
       continue;
     }
     if (ext === PDF_EXT) {
@@ -1130,8 +1308,8 @@ async function parseAttachments(msg) {
           tj.forEach(t => { const inner = t.match(/\(([^)]*)\)/); if (inner) texts.push(inner[1]); });
         }
         const extracted = texts.join(' ').replace(/\s+/g,' ').trim().slice(0, 8000);
-        textParts.push(extracted.length > 50 ? `--- 📄 ${name} ---\n${extracted}` : `[${name}: PDF scan, không extract được text]`);
-      } catch(e) { textParts.push(`[${name}: lỗi đọc PDF]`); }
+        textParts.push(extracted.length > 50 ? `--- 📄 ${name} ---\n${extracted}` : `[${name}: PDF scan]`);
+      } catch { textParts.push(`[${name}: lỗi đọc PDF]`); }
       continue;
     }
     if (TEXT_EXTS.includes(ext)) {
@@ -1159,7 +1337,6 @@ async function callAI(ctxId, userText, username, userId, guildId, imageParts = [
   let finalText = userText;
   if (searchCtx) {
     finalText = `[Kết quả tìm kiếm]:\n${searchCtx.slice(0, 6000)}\n\n[Câu hỏi]: ${userText}`;
-    console.log(`🔍 Search injected (${searchCtx.length} chars)`);
   }
   const histText = imageParts.length > 0
     ? `${username}: ${finalText}\n[Đính kèm: ${imageParts.map(i => i.filename).join(', ')}]`
@@ -1179,14 +1356,12 @@ async function handleAI(ctxId, userText, username, guildId, replyFn, channel, us
     const chunks = splitMessage(reply);
     try { await replyFn(chunks[0]); } catch { await channel.send(chunks[0]); }
     for (let i = 1; i < chunks.length; i++) await channel.send(chunks[i]);
-    console.log(`✅ [${getRolePriority(userId)}] ${reply.length}c`);
   } catch(e) {
     console.error('❌ handleAI:', e.message);
     try { await replyFn('Có lỗi xảy ra, thử lại sau nha 😅'); } catch {}
   } finally { activeRequests--; }
 }
 
-// TTS
 async function speakInVC(guildId, text) {
   const conn = getVoiceConnection(guildId); if (!conn) return;
   try {
@@ -1203,40 +1378,39 @@ async function speakInVC(guildId, text) {
 // ── HELP TEXT
 // ══════════════════════════════════════════════════════════════════════
 const HELP_TEXT = [
-  '**erima_vn v7.0** — AI trợ lý Discord 🤖',
+  '**erima_vn v8.0** — AI trợ lý Discord 🤖',
   '',
   '**💬 Chat:** `@erima_vn <tin nhắn>` — tự tìm kiếm DuckDuckGo + Wikipedia',
+  '**🤖 Agent:** `@erima_vn <task phức tạp>` — tự nhận diện & chạy agent',
   '',
-  '**🖼️ Gửi ảnh/file:**',
-  '• Kimi K2.6 (premium): vision native',
-  '• Free models: OCR tự động',
-  '• Hỗ trợ: ảnh (jpg/png/webp/gif), PDF, text/code files',
-  '',
-  '**🤖 AI Agent (chỉ Owner):**',
-  '`!agent <task>` — chạy AI Agent với browser, shell, file, web',
-  '`!agent stop` — dừng agent đang chạy',
-  'Agent có tools: run_command, write/read file, web_search, fetch_url,',
-  'browser_navigate, browser_screenshot, browser_eval, browser_accessibility',
+  '**Ví dụ agent trigger:**',
+  '• `@erima_vn chạy neofetch xem thông tin máy`',
+  '• `@erima_vn mở google.com chụp screenshot`',
+  '• `@erima_vn tạo file hello.py in Hello World`',
+  '• `@erima_vn cài nodejs và tạo HTTP server`',
   '',
   '**🔧 Lệnh user:**',
-  '`!model` / `!model list` / `!model <số>` — quản lý model AI',
+  '`!model` / `!model list` / `!model <số>` — quản lý model chat',
   '',
-  '**👑 Lệnh Owner + Admin:**',
+  '**👑 Lệnh Owner:**',
+  '`!ownermodel` — xem/chọn model agent',
+  '`!ownermodel list` — danh sách model agent',
+  '`!ownermodel <id>` — đổi model agent',
+  '`!resetowner` — reset về model mặc định (mimo)',
+  '`!agent stop` — dừng agent đang chạy',
   '`!setchannel` / `!removechannel`',
-  '`!search <query>` · `!fetch <URL>`',
-  '`!translate <text>` · `!roast [@user]`',
-  '`!limit <số|off>` · `!ping`',
+  '`!search <q>` · `!fetch <URL>` · `!translate <text>` · `!roast`',
+  '`!limit <số|off>` · `!ping` · `!servers`',
   '`!track @user` / `!untrack` / `!tracklist`',
-  '`!vc-join` / `!vc-leave` · `!servers`',
+  '`!vc-join` / `!vc-leave`',
   '`!start @bot` / `!stop`',
-  '',
-  '**👑 Chỉ Owner:**',
-  '*(mention @user + "admin/support/premium")* — cấp/thu hồi role',
   '`!adminlist` · `!supportlist` · `!premiumlist`',
+  '*(mention @user + "admin/support/premium")* — cấp/thu hồi role',
   '',
   '**📊 Roles:** 👑 Owner > 🛡️ Admin > 🎧 Support > 💎 Premium > 👤 User',
   '',
-  '**✨ v7.0:** MiMo AI Agent tích hợp (browser + shell + file + web) | Owner-only',
+  '**🤖 Agent Tools:** shell | file | browser (Chrome) | web search | S3 cloud',
+  '**v8.0:** Tích hợp MiMo AI Agent v3 | Auto-detect task | !ownermodel',
 ].join('\n');
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1251,14 +1425,14 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, async () => {
-  console.log(`✅ ${client.user.tag} online! (v7.0)`);
+  console.log(`✅ ${client.user.tag} online! (v8.0)`);
   console.log(`📡 ${client.guilds.cache.size} servers`);
   loadJSON(ADMIN_FILE, adminUsers);
   loadJSON(PREMIUM_FILE, premiumUsers);
   loadJSON(SUPPORT_FILE, supportUsers);
   ensureWorkspace();
   console.log(`🛡️ Admin:${adminUsers.size} 🎧 Support:${supportUsers.size} 💎 Premium:${premiumUsers.size}`);
-  console.log(`🤖 Agent workspace: ${WORKSPACE_PATH}`);
+  console.log(`🤖 Agent model: ${ownerAgentModel}`);
   updateStatus(client);
 });
 
@@ -1274,9 +1448,9 @@ client.on(Events.MessageCreate, async msg => {
   const userId      = msg.author.id;
   const isMentioned = msg.mentions.has(client.user);
   const isOwner     = verifyOwner(userId);
-  const isAdminUser = isAdmin(userId);
   const lower       = content.toLowerCase();
 
+  // Bot sessions
   if (msg.author.bot) {
     const session = guildId ? botSessions.get(guildId) : null;
     if (!session?.active || session.channelId !== channelId) return;
@@ -1326,58 +1500,47 @@ client.on(Events.MessageCreate, async msg => {
   // ── Commands
   if (lower === '!help') return msg.reply(HELP_TEXT);
 
-  // ── !agent — AI Agent (CHỈ OWNER) ──────────────────────────────────
-  if (lower.startsWith('!agent')) {
+  // ── !ownermodel — chọn model agent (chỉ owner)
+  if (lower.startsWith('!ownermodel')) {
     if (!requireOnlyOwner(msg)) return;
+    const arg = content.slice(11).trim().toLowerCase();
 
-    // !agent stop
-    if (lower === '!agent stop' || lower === '!agent dừng') {
-      if (agentSessions.has(channelId)) {
-        agentSessions.delete(channelId);
-        return msg.reply('⏹️ Đã dừng agent~');
-      }
-      return msg.reply('Không có agent nào đang chạy trong kênh này~');
+    if (!arg || arg === 'list') {
+      const current = AGENT_MODELS[ownerAgentModel];
+      const lines = ['**🤖 Agent Model (chỉ owner):**', `Hiện tại: **${current?.label || ownerAgentModel}**`, ''];
+      Object.entries(AGENT_MODELS).forEach(([id, m]) => {
+        const isCur = id === ownerAgentModel;
+        lines.push(`${isCur ? '▶️' : '•'} \`${id}\` — **${m.label}**${isCur ? ' ✅' : ''}`);
+      });
+      lines.push('', 'Dùng `!ownermodel <id>` để chọn | `!resetowner` để reset');
+      return msg.reply(lines.join('\n'));
     }
 
-    // !agent list / help
-    if (lower === '!agent' || lower === '!agent help') {
-      return msg.reply([
-        '**🤖 AI Agent — chỉ Owner dùng được**',
-        '',
-        'Dùng: `!agent <task>` — ví dụ:',
-        '• `!agent tạo file hello.py in Hello World`',
-        '• `!agent tìm kiếm giá Bitcoin hôm nay`',
-        '• `!agent mở trang google.com và chụp screenshot`',
-        '• `!agent chạy lệnh ls -la trong workspace`',
-        '• `!agent cài nodejs và tạo HTTP server demo`',
-        '',
-        'Tools: 🖥️ shell | 📁 file | 🌐 browser (Chrome) | 🔍 web search',
-        'Workspace: `agent_workspace/` (sandbox an toàn)',
-        '',
-        '`!agent stop` — dừng agent đang chạy',
-      ].join('\n'));
+    // Tìm model theo id
+    const found = AGENT_MODELS[arg] || Object.entries(AGENT_MODELS).find(([id]) => id.includes(arg))?.[0];
+    const foundKey = typeof found === 'string' ? found : arg;
+    if (AGENT_MODELS[foundKey]) {
+      ownerAgentModel = foundKey;
+      return msg.reply(`✅ Agent model → **${AGENT_MODELS[foundKey].label}**!`);
     }
+    return msg.reply(`❌ Không tìm thấy model \`${arg}\`. Dùng \`!ownermodel list\`~`);
+  }
 
-    const task = content.slice(6).trim();
-    if (!task) return msg.reply('Dùng: `!agent <task>` ví dụ: `!agent tạo file test.txt`');
+  // ── !resetowner — reset model về mặc định
+  if (lower === '!resetowner') {
+    if (!requireOnlyOwner(msg)) return;
+    ownerAgentModel = AGENT_MODEL_DEFAULT;
+    return msg.reply(`✅ Reset agent model về **${AGENT_MODELS[AGENT_MODEL_DEFAULT].label}**!`);
+  }
 
+  // ── !agent stop
+  if (lower === '!agent stop' || lower === '!agent dừng') {
+    if (!requireOnlyOwner(msg)) return;
     if (agentSessions.has(channelId)) {
-      return msg.reply('⚠️ Agent đang chạy trong kênh này rồi~ Chờ xong hoặc `!agent stop` để dừng.');
-    }
-
-    agentSessions.set(channelId, true);
-    console.log(`🤖 [Agent] Start: "${task}" by ${username}`);
-
-    try {
-      await runAgentLoop(task, msg.channel, (content) => msg.reply(content));
-    } catch(e) {
-      console.error('❌ Agent error:', e.message);
-      try { await msg.channel.send(`❌ Agent lỗi: ${e.message.slice(0, 200)}`); } catch {}
-    } finally {
       agentSessions.delete(channelId);
-      console.log(`🏁 [Agent] Done: "${task}"`);
+      return msg.reply('⏹️ Đã dừng agent~');
     }
-    return;
+    return msg.reply('Không có agent nào đang chạy trong kênh này~');
   }
 
   // ── !model
@@ -1387,7 +1550,7 @@ client.on(Events.MessageCreate, async msg => {
     const currentModel = getModelForUser(userId);
     const lines = ['**🤖 Model AI:**', `Hiện tại: **${currentModel.label}**`, ''];
     if (isPremOrAbove) {
-      lines.push(`💎 Premium/Support/Admin: **${PREMIUM_MODEL.label}** (Nvidia - xịn nhất)`);
+      lines.push(`💎 Premium/Support/Admin/Owner: **${PREMIUM_MODEL.label}** (Nvidia)`);
     } else {
       lines.push('**Free models:**');
       FREE_MODELS.forEach((m, i) => {
@@ -1475,7 +1638,7 @@ client.on(Events.MessageCreate, async msg => {
     const results = await Promise.allSettled(urls.map(u => fetchUrl(u, 2000)));
     const out = urls.map((u, i) => {
       const r = results[i];
-      return r.status === 'fulfilled' && r.value ? `**${u}:**\n\`\`\`\n${r.value.slice(0, 800)}\n\`\`\`` : `**${u}:** ❌ lỗi`;
+      return r.status === 'fulfilled' && r.value ? `**${u}:**\n\`\`\`\n${r.value.slice(0,800)}\n\`\`\`` : `**${u}:** ❌`;
     }).join('\n\n');
     const chunks = splitMessage(out);
     await msg.reply(chunks[0]);
@@ -1517,15 +1680,16 @@ client.on(Events.MessageCreate, async msg => {
     const up  = Math.floor(process.uptime());
     await s.edit([
       '```',
-      `🏓 Latency : ${Date.now()-start}ms`,
-      `⏱️ Uptime  : ${Math.floor(up/3600)}h ${Math.floor((up%3600)/60)}m`,
-      `💾 RAM     : ${(mem.rss/1024/1024).toFixed(1)}MB`,
-      `⚡ Active  : ${activeRequests} req`,
-      `🔑 OC Keys : ${OPENCODE_KEYS.length} (${OPENCODE_KEYS.length - _ocExhausted.size} OK)`,
-      `👑 Owner   : ${OWNER_NAME}`,
-      `🛡️ Admin   : ${adminUsers.size} | 🎧 Support: ${supportUsers.size} | 💎 Premium: ${premiumUsers.size}`,
-      `🤖 Free    : ${FREE_MODELS.map(m=>`${m.label}(${m.avgMs}ms)`).join(' | ')}`,
-      `🔧 Agent   : ${agentSessions.size} active session(s)`,
+      `🏓 Latency     : ${Date.now()-start}ms`,
+      `⏱️ Uptime      : ${Math.floor(up/3600)}h ${Math.floor((up%3600)/60)}m`,
+      `💾 RAM         : ${(mem.rss/1024/1024).toFixed(1)}MB`,
+      `⚡ Active      : ${activeRequests} req`,
+      `🔑 OC Keys     : ${OPENCODE_KEYS.length} (${OPENCODE_KEYS.length - _ocExhausted.size} OK)`,
+      `👑 Owner       : ${OWNER_NAME}`,
+      `🛡️ Admin       : ${adminUsers.size} | 🎧 Support: ${supportUsers.size} | 💎 Premium: ${premiumUsers.size}`,
+      `🤖 Agent model : ${AGENT_MODELS[ownerAgentModel]?.label || ownerAgentModel}`,
+      `🔧 Agent sess  : ${agentSessions.size} active`,
+      `🆓 Free models : ${FREE_MODELS.map(m=>`${m.label}(${m.avgMs}ms)`).join(' | ')}`,
       '```',
     ].join('\n'));
     return;
@@ -1605,7 +1769,7 @@ client.on(Events.MessageCreate, async msg => {
     return;
   }
 
-  // ── AI Chat
+  // ── AI Chat + Auto Agent Detection
   let userText = null;
   let imageParts = [];
 
@@ -1636,6 +1800,26 @@ client.on(Events.MessageCreate, async msg => {
   if (!userText?.trim()) return;
 
   const ctxId = isDM ? ('dm-' + userId) : (channelId + '-' + userId);
+
+  // ── Auto-detect agent task (chỉ owner)
+  if (isOwner && isAgentTask(userText)) {
+    if (agentSessions.has(channelId)) {
+      return msg.reply('⚠️ Agent đang chạy rồi~ Dùng `!agent stop` để dừng.');
+    }
+    agentSessions.set(channelId, true);
+    console.log(`🤖 [Agent] Auto-detect task: "${userText.slice(0,80)}" by ${username}`);
+    try {
+      await runAgentLoop(userText, msg.channel, r => msg.reply(r));
+    } catch(e) {
+      console.error('❌ Agent error:', e.message);
+      try { await msg.channel.send(`❌ Agent lỗi: ${e.message.slice(0,200)}`); } catch {}
+    } finally {
+      agentSessions.delete(channelId);
+    }
+    return;
+  }
+
+  // ── Normal chat
   await handleAI(ctxId, userText, username, guildId, r => msg.reply(r), msg.channel, userId, imageParts);
 });
 
@@ -1643,12 +1827,13 @@ client.on(Events.MessageCreate, async msg => {
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
-    status: 'online', bot: 'erima_vn', version: '7.0',
+    status: 'online', bot: 'erima_vn', version: '8.0',
     servers:       client?.guilds?.cache?.size || 0,
     uptime:        Math.floor(process.uptime()) + 's',
     models:        FREE_MODELS.map(m => ({ id: m.id, label: m.label, avgMs: m.avgMs })),
     premium_model: PREMIUM_MODEL.label,
-    agent_model:   AGENT_MODEL_KEY,
+    agent_model:   ownerAgentModel,
+    agent_models:  Object.keys(AGENT_MODELS),
     roles:         { admin: adminUsers.size, support: supportUsers.size, premium: premiumUsers.size },
     oc_keys:       { total: OPENCODE_KEYS.length, active: OPENCODE_KEYS.length - _ocExhausted.size },
     agent_sessions: agentSessions.size,
@@ -1656,5 +1841,4 @@ http.createServer((req, res) => {
   }));
 }).listen(PORT, () => console.log(`🌐 Status: http://localhost:${PORT}`));
 
-// ── Login
 client.login(DISCORD_TOKEN);
