@@ -1,7 +1,8 @@
 'use strict';
 // ╔═══════════════════════════════════════════════════════════════════════╗
-// ║  erima_vn — Discord AI Bot  v8.0                                     ║
-// ║  + MiMo AI Agent v3 (browser, shell, S3, web) — tích hợp đầy đủ   ║
+// ║  erima_vn — Discord AI Bot  v8.1                                     ║
+// ║  + MiMo AI Agent v3.1 (browser, shell, S3, web) — tích hợp đầy đủ ║
+// ║  + !agentmode — Owner-only realtime agent mode                      ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
 const { execSync, exec, spawn } = require('child_process');
@@ -62,9 +63,22 @@ const AGENT_MODELS = {
   'minimax-m3-free':        { label: 'MiniMax M3 Free 🆓',        hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'minimax-m3-free' },
   'nemotron-3-super-free':  { label: 'Nemotron 3 Super Free 🆓',  hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'nemotron-3-super-free' },
   'qwen3.6-plus-free':      { label: 'Qwen3.6 Plus Free 🆓',      hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'qwen3.6-plus-free' },
+  // ── Thêm đầy đủ providers từ MiMo v3.1 ──
+  'gpt-5':                  { label: 'GPT-5 🟢',                  hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gpt-5' },
+  'gpt-5-nano':             { label: 'GPT-5 Nano 🟢',             hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gpt-5-nano' },
+  'gpt-5.4':                { label: 'GPT-5.4 🟢',                hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gpt-5.4' },
+  'gpt-5.4-mini':           { label: 'GPT-5.4 Mini 🟢',           hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gpt-5.4-mini' },
+  'gpt-5.4-nano':           { label: 'GPT-5.4 Nano 🟢',           hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gpt-5.4-nano' },
+  'gemini-3-flash':         { label: 'Gemini 3 Flash 💎',          hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gemini-3-flash' },
+  'gemini-3.1-pro':         { label: 'Gemini 3.1 Pro 💎',          hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gemini-3.1-pro' },
+  'gemini-3.5-flash':       { label: 'Gemini 3.5 Flash 💎',        hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'gemini-3.5-flash' },
+  'claude-sonnet-4.6':      { label: 'Claude Sonnet 4.6 🟣',       hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'claude-sonnet-4-6' },
+  'claude-opus-4.8':        { label: 'Claude Opus 4.8 🟣',         hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'claude-opus-4-8' },
+  'glm-5':                  { label: 'GLM 5 🔷',                   hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'glm-5' },
+  'qwen3.7-max':            { label: 'Qwen3.7 Max 🐉',             hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'qwen3.7-max' },
+  'grok-build-0.1':         { label: 'Grok Build 0.1 ⚡',          hostname: OPENCODE_HOST, path: OPENCODE_PATH, model: 'grok-build-0.1' },
 };
 
-// Model mặc định cho agent
 const AGENT_MODEL_DEFAULT = 'mimo-v2.5-free';
 let ownerAgentModel = AGENT_MODEL_DEFAULT;
 
@@ -187,7 +201,7 @@ function safeResolvePath(inputPath, base) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── S3 CONFIG (từ MiMo v3)
+// ── S3 CONFIG
 // ══════════════════════════════════════════════════════════════════════
 const S3_CONFIGS = {
   synology: {
@@ -220,7 +234,7 @@ function getS3PromptInfo() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT TOOLS DEFINITION (MiMo v3 đầy đủ)
+// ── AGENT TOOLS DEFINITION (MiMo v3.1 đầy đủ)
 // ══════════════════════════════════════════════════════════════════════
 const AGENT_TOOLS = [
   { type: 'function', function: {
@@ -271,7 +285,7 @@ const AGENT_TOOLS = [
   }},
   { type: 'function', function: {
     name: 'fetch_url',
-    description: 'Lấy nội dung trang web.',
+    description: 'Lấy nội dung trang web. Nếu bị chặn (403/429) tự động fallback sang browser.',
     parameters: { type: 'object', properties: {
       url:     { type: 'string' },
       extract: { type: 'string', enum: ['text', 'html'] },
@@ -423,7 +437,7 @@ async function getPage() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT TOOL EXECUTOR (MiMo v3 đầy đủ)
+// ── AGENT TOOL EXECUTOR (MiMo v3.1 đầy đủ với fetch fallback)
 // ══════════════════════════════════════════════════════════════════════
 async function executeAgentTool(name, args) {
 
@@ -437,7 +451,6 @@ async function executeAgentTool(name, args) {
       const timeout = args.timeout || 300000;
       const env = { ...process.env, DEBIAN_FRONTEND: 'noninteractive' };
       exec(cmd, { cwd: safeCwd, timeout, maxBuffer: 1024*1024*4, env }, (err, stdout, stderr) => {
-        // Auto sudo nếu permission denied
         if (err && (stderr.includes('Permission denied') || stderr.includes('EACCES')) && !cmd.trimStart().startsWith('sudo')) {
           exec('sudo ' + cmd, { cwd: safeCwd, timeout, maxBuffer: 1024*1024*4, env }, (err2, stdout2, stderr2) => {
             resolve({ ok: !err2, output: ((stdout2||'') + (stderr2 ? '\n[stderr]\n'+stderr2 : '')).trim() || '(no output)', note: 'Auto sudo' });
@@ -486,8 +499,9 @@ async function executeAgentTool(name, args) {
     const kl = (args.lang === 'en') ? 'us-en' : 'vn-vi';
     const q  = encodeURIComponent(args.query);
     const url = `https://html.duckduckgo.com/html/?q=${q}&kl=${kl}`;
-    try {
-      const html = await rawFetch(url, { timeout: 12000 });
+
+    // MiMo v3.1: thử HTTP trước, fallback browser nếu bị chặn
+    async function parseDDGHtml(html) {
       const re = /<a class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
       const results = []; let m;
       while ((m = re.exec(html)) !== null && results.length < 6) {
@@ -495,17 +509,62 @@ async function executeAgentTool(name, args) {
         const snippet = stripHtml(m[3]).trim().slice(0, 250);
         if (title && snippet) results.push(`${results.length+1}. **${title}**\n   ${snippet}\n   ${m[1]}`);
       }
+      return results;
+    }
+    try {
+      const html = await rawFetch(url, { timeout: 12000 });
+      const results = await parseDDGHtml(html);
       if (results.length > 0) return { ok: true, output: results.join('\n\n') };
+      // fallback browser
+      const page = await getPage();
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const html2 = await page.content();
+      const results2 = await parseDDGHtml(html2);
+      if (results2.length > 0) return { ok: true, output: results2.join('\n\n') };
       return { ok: false, output: `Không tìm thấy kết quả cho "${args.query}"` };
-    } catch(e) { return { ok: false, output: `❌ Search lỗi: ${e.message}` }; }
+    } catch(e) {
+      try {
+        const page = await getPage();
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        const html2 = await page.content();
+        const results2 = await parseDDGHtml(html2);
+        if (results2.length > 0) return { ok: true, output: results2.join('\n\n') };
+      } catch {}
+      return { ok: false, output: `❌ Search lỗi: ${e.message}` };
+    }
   }
 
   if (name === 'fetch_url') {
+    // MiMo v3.1: các domain hay chặn bot → dùng browser luôn
+    const BROWSER_DOMAINS = ['facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 'cloudflare.com'];
+    let useBrowser = false;
+    try { useBrowser = BROWSER_DOMAINS.some(d => new URL(args.url).hostname.includes(d)); } catch {}
+
+    async function fetchViaBrowser(url, extract) {
+      try {
+        const page = await getPage();
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        let out;
+        if (extract === 'html') { out = await page.content(); }
+        else { out = await page.evaluate(() => document.body?.innerText || document.body?.textContent || ''); out = out.replace(/\s+/g, ' ').trim().slice(0, 10000); }
+        return { ok: true, output: out, via: 'browser' };
+      } catch(e) { return { ok: false, output: `❌ Browser fetch lỗi: ${e.message}` }; }
+    }
+
+    if (useBrowser) return fetchViaBrowser(args.url, args.extract);
+
     try {
       const html = await rawFetch(args.url, { timeout: 15000, maxBytes: 200000 });
       if (args.extract === 'html') return { ok: true, output: html.slice(0, 8000) };
       return { ok: true, output: stripHtml(html).slice(0, 8000) };
-    } catch(e) { return { ok: false, output: `❌ Fetch lỗi: ${e.message}` }; }
+    } catch(e) {
+      // fallback browser
+      if (e.message.includes('403') || e.message.includes('429') || e.message.includes('timeout')) {
+        console.log(`  ↩ HTTP bị chặn, fallback browser: ${args.url}`);
+        return fetchViaBrowser(args.url, args.extract);
+      }
+      return { ok: false, output: `❌ Fetch lỗi: ${e.message}` };
+    }
   }
 
   if (name === 'browser_navigate') {
@@ -661,7 +720,238 @@ async function executeAgentTool(name, args) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT SYSTEM PROMPT (MiMo v3 cải tiến)
+// ── !AGENTMODE — OWNER-ONLY INTERACTIVE AGENT MODE
+// ══════════════════════════════════════════════════════════════════════
+// Map<userId, { channelId, active, model }>
+const agentModes = new Map();
+
+// System prompt đầy đủ từ MiMo AI v3.1 (nguyên bản + tích hợp erima_vn)
+function buildAgentModeSystemPrompt() {
+  return `Bạn là erima_vn AI Agent — phiên bản MiMo AI v3.1, chạy trên Linux/Ubuntu với khả năng điều khiển browser, chạy lệnh shell, đọc/ghi file, tìm kiếm web, và lưu trữ file lên S3.
+
+## NGUYÊN TẮC QUAN TRỌNG:
+1. **KHÔNG BAO GIỜ dừng giữa chừng** — nếu task chưa xong, hãy tự tiếp tục dùng tools cho đến khi hoàn thành.
+2. **Tự quyết định** — không hỏi user những thứ bạn tự làm được. Chỉ hỏi khi thực sự cần thông tin từ user.
+3. **Xử lý lỗi tự động** — nếu tool trả về lỗi, hãy tự phân tích và thử cách khác, không dừng lại.
+4. **Browser** — luôn dùng navigate trước, sau đó dùng accessibility tree hoặc eval để đọc nội dung trang. Screenshot để xác nhận.
+5. **Shell** — dùng sudo khi cần quyền root. Thêm -y để tắt confirm. Timeout mặc định 5 phút.
+6. **Hoàn thành triệt để** — chỉ báo "Hoàn thành" khi task đã thực sự xong, có kết quả cụ thể.
+
+## FLOW KHI GẶP LỖI:
+- Lỗi permission → thêm sudo (tự động)
+- Package chưa cài → cài rồi thử lại
+- Browser lỗi → thử lại hoặc dùng fetch_url thay thế
+- HTTP 403/429 → tự động fallback browser
+- Network lỗi → retry sau vài giây
+- Lỗi không rõ → thử cách khác, báo cáo chi tiết
+
+## S3 CLOUD STORAGE (PHẢI dùng --endpoint-url, KHÔNG PHẢI AWS):
+${getS3PromptInfo()}
+
+**Cách dùng:**
+Synology: AWS_ACCESS_KEY_ID=usnOfNaBZjVnXEqcKMzZ35wkdkKEdd99 AWS_SECRET_ACCESS_KEY=Ft8RsTm38ZMaY5XJBnwbTrpM9o2aGJgd aws s3 ls --endpoint-url https://us-004.s3.synologyc2.net
+Storj: AWS_ACCESS_KEY_ID=jwcfd2i7ijqh3zu6nqjgtxdgogxq AWS_SECRET_ACCESS_KEY=j3zylsrq7q2zqfwk7h54k6t2qmics7fzpajxeyfclsrfmfera5fis aws s3 ls --endpoint-url https://gateway.storjshare.io
+
+**Nếu chưa biết bucket name → chạy list trước. Nếu aws cli chưa cài → pip install awscli --break-system-packages**
+**Tự động dùng S3 khi user yêu cầu lưu/backup file cloud.**
+
+## TOOLS CÓ SẴN:
+- **Shell:** run_command (auto sudo, auto DEBIAN_FRONTEND=noninteractive)
+- **File:** write_file, read_file, list_dir, delete_file
+- **Web:** web_search (DuckDuckGo, fallback browser), fetch_url (auto fallback browser khi bị chặn)
+- **Browser:** browser_navigate, browser_screenshot, browser_eval, browser_resize, browser_console_logs, browser_network, browser_emulate, browser_accessibility, browser_screencast_start/stop
+
+## SAU KHI DÙNG TOOL:
+- LUÔN LUÔN viết câu trả lời text sau khi tool chạy xong
+- KHÔNG BAO GIỜ im lặng hoàn toàn sau tool_result
+- Tóm tắt kết quả, giải thích những gì đã làm, trả lời câu hỏi ban đầu
+
+Trả lời tiếng Việt. Xưng hô với chủ nhân (victory_vn) ấm áp, Gen Z.`;
+}
+
+// ── Agent Mode: AI call (streaming, tool-use)
+async function callAgentModeAI(messages, modelKey) {
+  const provider = AGENT_MODELS[modelKey] || AGENT_MODELS[AGENT_MODEL_DEFAULT];
+  const key      = provider.apiKey || getCurrentOCKey();
+
+  const body = JSON.stringify({
+    model:       provider.model,
+    messages,
+    tools:       AGENT_TOOLS,
+    tool_choice: 'auto',
+    stream:      true,
+    max_tokens:  65536,
+  });
+
+  const headers = {
+    'Content-Type':   'application/json',
+    'Authorization':  'Bearer ' + key,
+    'Content-Length': Buffer.byteLength(body).toString(),
+  };
+  if (provider.hostname === OPENCODE_HOST) {
+    Object.assign(headers, {
+      'x-opencode-client':  'cli',
+      'x-opencode-session': require('crypto').randomUUID(),
+      'x-opencode-request': require('crypto').randomUUID(),
+      'User-Agent':         'opencode/latest/1.3.15/cli',
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: provider.hostname, path: provider.path, method: 'POST', headers,
+    }, res => {
+      let buf = '', fullText = '', toolCalls = {};
+      res.on('data', chunk => {
+        buf += chunk.toString();
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+          let parsed; try { parsed = JSON.parse(raw); } catch { continue; }
+          if (parsed.error?.code === 'insufficient_credits') { res.destroy(); rotateOCKey(key); return reject(new Error('insufficient_credits')); }
+          const delta = parsed.choices?.[0]?.delta;
+          if (delta?.content) fullText += delta.content;
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index ?? 0;
+              if (!toolCalls[idx]) toolCalls[idx] = { id: tc.id || idx, name: '', args: '' };
+              if (tc.id) toolCalls[idx].id = tc.id;
+              if (tc.function?.name)      toolCalls[idx].name += tc.function.name;
+              if (tc.function?.arguments) toolCalls[idx].args += tc.function.arguments;
+            }
+          }
+        }
+      });
+      res.on('end', () => resolve({ text: fullText, toolCalls: Object.values(toolCalls) }));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(180000, () => { req.destroy(); reject(new Error('Agent AI timeout')); });
+    req.write(body); req.end();
+  });
+}
+
+// ── Agent Mode: Multi-turn conversation loop (MiMo v3.1 flow)
+async function runAgentModeLoop(userId, userText, channel) {
+  const session = agentModes.get(userId);
+  if (!session) return;
+
+  const modelKey = session.model || ownerAgentModel;
+  const sysPrompt = buildAgentModeSystemPrompt();
+
+  // Lấy/khởi tạo conversation history cho session này
+  if (!session.messages) {
+    session.messages = [
+      { role: 'user',      content: sysPrompt },
+      { role: 'assistant', content: 'Đã hiểu. Sẵn sàng hỗ trợ chủ nhân trong Agent Mode!' },
+    ];
+  }
+
+  // Thêm user message mới
+  session.messages.push({ role: 'user', content: userText });
+
+  let iterations = 0;
+  const MAX_ITER = 50;
+  let toolWasCalledLastRound = false;
+
+  await channel.sendTyping();
+
+  while (iterations++ < MAX_ITER) {
+    let result;
+    try {
+      result = await callAgentModeAI(session.messages, modelKey);
+    } catch(e) {
+      console.error('❌ AgentMode AI call error:', e.message);
+      await channel.send(`❌ Agent AI lỗi: ${e.message.slice(0,100)}`);
+      break;
+    }
+
+    const assistantMsg = { role: 'assistant', content: result.text || '' };
+    if (result.toolCalls.length > 0) {
+      assistantMsg.tool_calls = result.toolCalls.map(tc => ({
+        id: String(tc.id), type: 'function',
+        function: { name: tc.name, arguments: tc.args },
+      }));
+    }
+    session.messages.push(assistantMsg);
+
+    // Gửi text reply nếu có
+    if (result.text?.trim()) {
+      const chunks = splitMessage(result.text.trim());
+      for (const c of chunks) await channel.send(c);
+    }
+
+    // Không có tool call → xong
+    if (!result.toolCalls.length) {
+      if (toolWasCalledLastRound && !result.text?.trim()) {
+        // AI im lặng sau tool → force summary (MiMo v3.1 behavior)
+        session.messages.push({ role: 'user', content: 'Dựa trên kết quả tool vừa rồi, hãy trả lời câu hỏi ban đầu của mình một cách đầy đủ.' });
+        const finalRes = await callAgentModeAI(session.messages, modelKey).catch(() => null);
+        if (finalRes?.text?.trim()) {
+          session.messages.push({ role: 'assistant', content: finalRes.text });
+          const chunks = splitMessage(finalRes.text.trim());
+          for (const c of chunks) await channel.send(c);
+        }
+      }
+      break;
+    }
+
+    toolWasCalledLastRound = true;
+    await channel.sendTyping();
+
+    for (const tc of result.toolCalls) {
+      let args = {};
+      try { args = JSON.parse(tc.args); } catch {}
+
+      console.log(`  🔧 [AgentMode] Tool: ${tc.name} | ${JSON.stringify(args).slice(0,120)}`);
+
+      const toolLabels = {
+        run_command:              `🖥️ \`${(args.command||'').slice(0,60)}\``,
+        write_file:               `📝 Ghi \`${args.path||''}\``,
+        read_file:                `📖 Đọc \`${args.path||''}\``,
+        list_dir:                 `📁 Xem thư mục`,
+        delete_file:              `🗑️ Xóa \`${args.path||''}\``,
+        web_search:               `🔍 Tìm: \`${args.query||''}\``,
+        fetch_url:                `🌐 Fetch \`${(args.url||'').slice(0,60)}\``,
+        browser_navigate:         `🌐 Browser → \`${(args.url||'').slice(0,60)}\``,
+        browser_screenshot:       `📷 Screenshot`,
+        browser_eval:             `⚡ Browser JS`,
+        browser_resize:           `📐 Resize viewport`,
+        browser_accessibility:    `♿ Accessibility tree`,
+        browser_console_logs:     `📋 Console logs`,
+        browser_network:          `🔌 Network logs`,
+        browser_emulate:          `📱 Giả lập: ${args.device||''}`,
+        browser_screencast_start: `🎥 Bắt đầu quay`,
+        browser_screencast_stop:  `🎬 Dừng quay`,
+      };
+      try { await channel.send(`> ${toolLabels[tc.name] || `🔧 ${tc.name}`}`); } catch {}
+
+      const toolResult = await executeAgentTool(tc.name, args);
+      console.log(`  ✓ [AgentMode] ${tc.name} → ${String(toolResult.output||'').slice(0,80)}`);
+
+      session.messages.push({
+        role: 'tool', tool_call_id: String(tc.id),
+        content: String(toolResult.output || JSON.stringify(toolResult)).slice(0, 8000),
+      });
+    }
+  }
+
+  if (iterations >= MAX_ITER) {
+    await channel.send('⚠️ Agent Mode đạt giới hạn vòng lặp (50). Gõ lại nếu cần tiếp tục~');
+  }
+
+  // Giữ history tối đa 60 messages (MiMo v3.1 style)
+  if (session.messages.length > 60) {
+    const sys2 = session.messages.slice(0, 2);
+    const rest  = session.messages.slice(-56);
+    session.messages = [...sys2, ...rest];
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ── AGENT SYSTEM PROMPT (non-agentmode, auto-detect)
 // ══════════════════════════════════════════════════════════════════════
 function buildAgentSystemPrompt() {
   return `Bạn là erima_vn AI Agent — phiên bản mạnh mẽ chạy trên Linux/Ubuntu với đầy đủ khả năng tự động hóa, điều khiển browser, và lưu trữ cloud S3.
@@ -678,6 +968,7 @@ function buildAgentSystemPrompt() {
 - Lỗi permission → thêm sudo (tự động)
 - Package chưa cài → cài rồi thử lại
 - Browser lỗi → thử lại hoặc dùng fetch_url
+- HTTP 403/429 → tự động fallback browser
 - Network lỗi → retry sau vài giây
 
 ## S3 CLOUD STORAGE:
@@ -700,7 +991,7 @@ Trả lời tiếng Việt. Xưng hô với chủ nhân (victory_vn) ấm áp, G
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT API CALL
+// ── AGENT API CALL (for auto-detect, non-agentmode)
 // ══════════════════════════════════════════════════════════════════════
 async function callAgentAI(messages, onText) {
   const modelKey = ownerAgentModel;
@@ -767,7 +1058,7 @@ async function callAgentAI(messages, onText) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── AGENT RUNNER
+// ── AGENT RUNNER (auto-detect, single-task)
 // ══════════════════════════════════════════════════════════════════════
 async function runAgentLoop(userQuery, channel, replyFn) {
   const sysPrompt = buildAgentSystemPrompt();
@@ -835,8 +1126,6 @@ async function runAgentLoop(userQuery, channel, replyFn) {
       let args = {};
       try { args = JSON.parse(tc.args); } catch {}
 
-      console.log(`  🔧 [Agent] Tool: ${tc.name} args: ${JSON.stringify(args).slice(0,120)}`);
-
       const toolLabels = {
         run_command:              `🖥️ Chạy: \`${(args.command||'').slice(0,60)}\``,
         write_file:               `📝 Ghi file: \`${args.path||''}\``,
@@ -860,8 +1149,6 @@ async function runAgentLoop(userQuery, channel, replyFn) {
       try { await channel.send(`> ${label}`); } catch {}
 
       const toolResult = await executeAgentTool(tc.name, args);
-      console.log(`  ✓ [Agent] ${tc.name} → ${String(toolResult.output||'').slice(0,80)}`);
-
       messages.push({
         role: 'tool', tool_call_id: String(tc.id),
         content: String(toolResult.output || JSON.stringify(toolResult)).slice(0, 8000),
@@ -875,7 +1162,7 @@ async function runAgentLoop(userQuery, channel, replyFn) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ── DETECT AGENT TASK (phân biệt câu hỏi thường vs task agent)
+// ── DETECT AGENT TASK
 // ══════════════════════════════════════════════════════════════════════
 const AGENT_TASK_RE = [
   /\b(chạy|run|thực thi|execute|cài|install|tạo file|write file|xóa|delete|copy|move)\b/i,
@@ -1378,16 +1665,20 @@ async function speakInVC(guildId, text) {
 // ── HELP TEXT
 // ══════════════════════════════════════════════════════════════════════
 const HELP_TEXT = [
-  '**erima_vn v8.0** — AI trợ lý Discord 🤖',
+  '**erima_vn v8.1** — AI trợ lý Discord 🤖',
   '',
   '**💬 Chat:** `@erima_vn <tin nhắn>` — tự tìm kiếm DuckDuckGo + Wikipedia',
   '**🤖 Agent:** `@erima_vn <task phức tạp>` — tự nhận diện & chạy agent',
   '',
-  '**Ví dụ agent trigger:**',
-  '• `@erima_vn chạy neofetch xem thông tin máy`',
-  '• `@erima_vn mở google.com chụp screenshot`',
-  '• `@erima_vn tạo file hello.py in Hello World`',
-  '• `@erima_vn cài nodejs và tạo HTTP server`',
+  '**🚀 !agentmode — OWNER ONLY:**',
+  '`!agentmode on` — Bật Agent Mode (mọi tin nhắn → agent MiMo v3.1)',
+  '`!agentmode off` — Tắt Agent Mode',
+  '`!agentmode status` — Kiểm tra trạng thái',
+  '`!agentmode model <id>` — Đổi model trong agent mode',
+  '`!agentmode clear` — Xóa lịch sử hội thoại agent mode',
+  '',
+  '**Khi agentmode BẬT:** Mọi tin nhắn của owner trong kênh đó sẽ được xử lý bởi',
+  'MiMo AI Agent v3.1 với đầy đủ tools: shell, file, browser, web search, S3.',
   '',
   '**🔧 Lệnh user:**',
   '`!model` / `!model list` / `!model <số>` — quản lý model chat',
@@ -1409,8 +1700,8 @@ const HELP_TEXT = [
   '',
   '**📊 Roles:** 👑 Owner > 🛡️ Admin > 🎧 Support > 💎 Premium > 👤 User',
   '',
-  '**🤖 Agent Tools:** shell | file | browser (Chrome) | web search | S3 cloud',
-  '**v8.0:** Tích hợp MiMo AI Agent v3 | Auto-detect task | !ownermodel',
+  '**🤖 Agent Tools (MiMo v3.1):** shell | file | browser (Chrome) | web search (auto fallback) | S3 cloud',
+  '**v8.1:** !agentmode — multi-turn agent mode riêng cho owner | MiMo v3.1 full integration',
 ].join('\n');
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1425,7 +1716,7 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, async () => {
-  console.log(`✅ ${client.user.tag} online! (v8.0)`);
+  console.log(`✅ ${client.user.tag} online! (v8.1)`);
   console.log(`📡 ${client.guilds.cache.size} servers`);
   loadJSON(ADMIN_FILE, adminUsers);
   loadJSON(PREMIUM_FILE, premiumUsers);
@@ -1500,6 +1791,126 @@ client.on(Events.MessageCreate, async msg => {
   // ── Commands
   if (lower === '!help') return msg.reply(HELP_TEXT);
 
+  // ══════════════════════════════════════════════════════════════════
+  // ── !agentmode — OWNER ONLY, chỉ chủ nhân dùng được
+  // ══════════════════════════════════════════════════════════════════
+  if (lower.startsWith('!agentmode')) {
+    // STRICT: chỉ owner, không ai khác
+    if (!verifyOwner(userId)) {
+      await msg.reply('⛔ `!agentmode` chỉ dành riêng cho **chủ nhân** thôi~ Không có ngoại lệ 🔒');
+      return;
+    }
+
+    const arg = content.slice(10).trim().toLowerCase();
+    const argFull = content.slice(10).trim();
+
+    // !agentmode on
+    if (!arg || arg === 'on') {
+      const existing = agentModes.get(userId);
+      if (existing?.active) {
+        return msg.reply(`✅ Agent Mode đang **BẬT** rồi trong kênh <#${existing.channelId}>!\nModel: **${AGENT_MODELS[existing.model]?.label || existing.model}**\n\n> Gõ \`!agentmode off\` để tắt.`);
+      }
+      agentModes.set(userId, {
+        active: true,
+        channelId,
+        model: ownerAgentModel,
+        messages: null, // sẽ được khởi tạo khi tin nhắn đầu tiên đến
+      });
+      return msg.reply([
+        '🚀 **Agent Mode BẬT!** (MiMo AI v3.1)',
+        '',
+        `📍 Kênh: <#${channelId}>`,
+        `🤖 Model: **${AGENT_MODELS[ownerAgentModel]?.label || ownerAgentModel}**`,
+        '',
+        '**Mọi tin nhắn của chủ nhân trong kênh này** sẽ được xử lý bởi Agent với đầy đủ:',
+        '• 🖥️ Shell (run_command, auto sudo)',
+        '• 📁 File (read/write/list/delete)',
+        '• 🌐 Browser (navigate, screenshot, eval, accessibility, screencast)',
+        '• 🔍 Web search (DuckDuckGo, auto fallback browser)',
+        '• ☁️ S3 Cloud (Synology C2 + Storj)',
+        '',
+        '**Lịch sử hội thoại được giữ** — agent nhớ context xuyên suốt session.',
+        '',
+        '`!agentmode off` — tắt | `!agentmode clear` — xóa history | `!agentmode model <id>` — đổi model',
+      ].join('\n'));
+    }
+
+    // !agentmode off
+    if (arg === 'off' || arg === 'tắt' || arg === 'stop') {
+      const existing = agentModes.get(userId);
+      if (!existing?.active) {
+        return msg.reply('ℹ️ Agent Mode chưa được bật~');
+      }
+      agentModes.delete(userId);
+      return msg.reply('⏹️ **Agent Mode TẮT.** Bot trở về chế độ chat thường~');
+    }
+
+    // !agentmode status
+    if (arg === 'status' || arg === 'info') {
+      const existing = agentModes.get(userId);
+      if (!existing?.active) {
+        return msg.reply([
+          '📊 **Agent Mode Status:**',
+          '• Trạng thái: ❌ TẮT',
+          '',
+          `Gõ \`!agentmode on\` để bật trong kênh này.`,
+        ].join('\n'));
+      }
+      const msgCount = existing.messages ? existing.messages.length : 0;
+      return msg.reply([
+        '📊 **Agent Mode Status:**',
+        `• Trạng thái: ✅ BẬT`,
+        `• Kênh: <#${existing.channelId}>`,
+        `• Model: **${AGENT_MODELS[existing.model]?.label || existing.model}**`,
+        `• Lịch sử: ${msgCount} messages`,
+        '',
+        '`!agentmode off` — tắt | `!agentmode clear` — xóa history',
+      ].join('\n'));
+    }
+
+    // !agentmode clear
+    if (arg === 'clear' || arg === 'reset') {
+      const existing = agentModes.get(userId);
+      if (!existing) return msg.reply('ℹ️ Agent Mode chưa được bật~');
+      existing.messages = null; // Reset history, sẽ tạo lại ở lần sau
+      return msg.reply('🗑️ Đã xóa lịch sử hội thoại Agent Mode! Context mới sẽ bắt đầu từ tin nhắn tiếp theo~');
+    }
+
+    // !agentmode model <id>
+    if (arg.startsWith('model')) {
+      const modelArg = argFull.slice(5).trim().toLowerCase();
+      if (!modelArg) {
+        // Hiện danh sách
+        const existing = agentModes.get(userId);
+        const currentModel = existing?.model || ownerAgentModel;
+        const lines = ['**🤖 Agent Mode Models:**', `Hiện tại: **${AGENT_MODELS[currentModel]?.label || currentModel}**`, ''];
+        Object.entries(AGENT_MODELS).forEach(([id, m]) => {
+          lines.push(`${id === currentModel ? '▶️' : '•'} \`${id}\` — **${m.label}**${id === currentModel ? ' ✅' : ''}`);
+        });
+        lines.push('', 'Dùng `!agentmode model <id>` để chọn');
+        return msg.reply(lines.join('\n'));
+      }
+      const found = AGENT_MODELS[modelArg] ? modelArg : Object.keys(AGENT_MODELS).find(id => id.includes(modelArg));
+      if (!found) return msg.reply(`❌ Không tìm thấy model \`${modelArg}\`. Dùng \`!agentmode model\` để xem danh sách~`);
+      const existing = agentModes.get(userId);
+      if (existing) existing.model = found;
+      ownerAgentModel = found; // Cập nhật model mặc định luôn
+      return msg.reply(`✅ Agent Mode model → **${AGENT_MODELS[found].label}**!`);
+    }
+
+    // Unknown subcommand
+    return msg.reply([
+      '**!agentmode — Owner Only 👑**',
+      '',
+      '`!agentmode on` — Bật agent mode',
+      '`!agentmode off` — Tắt agent mode',
+      '`!agentmode status` — Xem trạng thái',
+      '`!agentmode model` — Xem/đổi model',
+      '`!agentmode model <id>` — Đổi model cụ thể',
+      '`!agentmode clear` — Xóa lịch sử hội thoại',
+    ].join('\n'));
+  }
+
   // ── !ownermodel — chọn model agent (chỉ owner)
   if (lower.startsWith('!ownermodel')) {
     if (!requireOnlyOwner(msg)) return;
@@ -1516,7 +1927,6 @@ client.on(Events.MessageCreate, async msg => {
       return msg.reply(lines.join('\n'));
     }
 
-    // Tìm model theo id
     const found = AGENT_MODELS[arg] || Object.entries(AGENT_MODELS).find(([id]) => id.includes(arg))?.[0];
     const foundKey = typeof found === 'string' ? found : arg;
     if (AGENT_MODELS[foundKey]) {
@@ -1526,14 +1936,12 @@ client.on(Events.MessageCreate, async msg => {
     return msg.reply(`❌ Không tìm thấy model \`${arg}\`. Dùng \`!ownermodel list\`~`);
   }
 
-  // ── !resetowner — reset model về mặc định
   if (lower === '!resetowner') {
     if (!requireOnlyOwner(msg)) return;
     ownerAgentModel = AGENT_MODEL_DEFAULT;
     return msg.reply(`✅ Reset agent model về **${AGENT_MODELS[AGENT_MODEL_DEFAULT].label}**!`);
   }
 
-  // ── !agent stop
   if (lower === '!agent stop' || lower === '!agent dừng') {
     if (!requireOnlyOwner(msg)) return;
     if (agentSessions.has(channelId)) {
@@ -1543,7 +1951,6 @@ client.on(Events.MessageCreate, async msg => {
     return msg.reply('Không có agent nào đang chạy trong kênh này~');
   }
 
-  // ── !model
   if (lower === '!model' || lower === '!model list') {
     const role = getRolePriority(userId);
     const isPremOrAbove = ['owner','admin','support','premium'].includes(role);
@@ -1678,6 +2085,7 @@ client.on(Events.MessageCreate, async msg => {
     const s = await msg.reply('🏓 Pinging...');
     const mem = process.memoryUsage();
     const up  = Math.floor(process.uptime());
+    const agentModeInfo = isOwner && agentModes.has(userId) ? `✅ BẬT (${AGENT_MODELS[agentModes.get(userId).model]?.label || agentModes.get(userId).model})` : '❌ TẮT';
     await s.edit([
       '```',
       `🏓 Latency     : ${Date.now()-start}ms`,
@@ -1688,6 +2096,7 @@ client.on(Events.MessageCreate, async msg => {
       `👑 Owner       : ${OWNER_NAME}`,
       `🛡️ Admin       : ${adminUsers.size} | 🎧 Support: ${supportUsers.size} | 💎 Premium: ${premiumUsers.size}`,
       `🤖 Agent model : ${AGENT_MODELS[ownerAgentModel]?.label || ownerAgentModel}`,
+      `🚀 Agent Mode  : ${agentModeInfo}`,
       `🔧 Agent sess  : ${agentSessions.size} active`,
       `🆓 Free models : ${FREE_MODELS.map(m=>`${m.label}(${m.avgMs}ms)`).join(' | ')}`,
       '```',
@@ -1769,7 +2178,9 @@ client.on(Events.MessageCreate, async msg => {
     return;
   }
 
-  // ── AI Chat + Auto Agent Detection
+  // ══════════════════════════════════════════════════════════════════
+  // ── AI Chat + Agent Mode + Auto Agent Detection
+  // ══════════════════════════════════════════════════════════════════
   let userText = null;
   let imageParts = [];
 
@@ -1787,6 +2198,15 @@ client.on(Events.MessageCreate, async msg => {
     else if (isSetCh)     userText = content;
     else if (isTracked)   userText = content;
     else if (lower.includes('erima')) userText = content;
+
+    // ── !agentmode: owner tin nhắn trong kênh được bật agentmode
+    if (isOwner && !userText) {
+      const agentSession = agentModes.get(userId);
+      if (agentSession?.active && agentSession.channelId === channelId) {
+        userText = content;
+      }
+    }
+
     if (!userText && msg.attachments.size === 0) return;
     if (!userText) userText = '';
     const { textParts, imageParts: imgs } = await parseAttachments(msg);
@@ -1801,13 +2221,28 @@ client.on(Events.MessageCreate, async msg => {
 
   const ctxId = isDM ? ('dm-' + userId) : (channelId + '-' + userId);
 
-  // ── Auto-detect agent task (chỉ owner)
+  // ── Priority 1: !agentmode active — owner nhắn trong kênh được bật
+  if (isOwner) {
+    const agentSession = agentModes.get(userId);
+    if (agentSession?.active && agentSession.channelId === channelId) {
+      console.log(`🚀 [AgentMode] ${username}: "${userText.slice(0,80)}"`);
+      try {
+        await runAgentModeLoop(userId, userText, msg.channel);
+      } catch(e) {
+        console.error('❌ AgentMode error:', e.message);
+        try { await msg.channel.send(`❌ Agent Mode lỗi: ${e.message.slice(0,200)}`); } catch {}
+      }
+      return;
+    }
+  }
+
+  // ── Priority 2: Auto-detect agent task (chỉ owner, agentmode chưa bật)
   if (isOwner && isAgentTask(userText)) {
     if (agentSessions.has(channelId)) {
       return msg.reply('⚠️ Agent đang chạy rồi~ Dùng `!agent stop` để dừng.');
     }
     agentSessions.set(channelId, true);
-    console.log(`🤖 [Agent] Auto-detect task: "${userText.slice(0,80)}" by ${username}`);
+    console.log(`🤖 [Agent] Auto-detect: "${userText.slice(0,80)}" by ${username}`);
     try {
       await runAgentLoop(userText, msg.channel, r => msg.reply(r));
     } catch(e) {
@@ -1819,15 +2254,19 @@ client.on(Events.MessageCreate, async msg => {
     return;
   }
 
-  // ── Normal chat
+  // ── Priority 3: Normal chat
   await handleAI(ctxId, userText, username, guildId, r => msg.reply(r), msg.channel, userId, imageParts);
 });
 
 // ── HTTP status
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
+  const agentModeList = [...agentModes.entries()].map(([uid, s]) => ({
+    userId: uid, channelId: s.channelId, model: s.model,
+    historyLen: s.messages ? s.messages.length : 0,
+  }));
   res.end(JSON.stringify({
-    status: 'online', bot: 'erima_vn', version: '8.0',
+    status: 'online', bot: 'erima_vn', version: '8.1',
     servers:       client?.guilds?.cache?.size || 0,
     uptime:        Math.floor(process.uptime()) + 's',
     models:        FREE_MODELS.map(m => ({ id: m.id, label: m.label, avgMs: m.avgMs })),
@@ -1837,6 +2276,7 @@ http.createServer((req, res) => {
     roles:         { admin: adminUsers.size, support: supportUsers.size, premium: premiumUsers.size },
     oc_keys:       { total: OPENCODE_KEYS.length, active: OPENCODE_KEYS.length - _ocExhausted.size },
     agent_sessions: agentSessions.size,
+    agent_modes:   agentModeList,
     workspace:     WORKSPACE_PATH,
   }));
 }).listen(PORT, () => console.log(`🌐 Status: http://localhost:${PORT}`));
